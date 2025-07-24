@@ -58,21 +58,24 @@ async def analyze_guild_performance(realm: str, guild_name: str, analysis_type: 
             # Process through workflow
             analysis_result = await workflow.analyze_guild(guild_data, analysis_type)
             
+            # Extract data from the workflow result
+            guild_summary = analysis_result.get('analysis_results', {}).get('formatted_response', {}).get('guild_summary', {})
+            performance_insights = analysis_result.get('analysis_results', {}).get('formatted_response', {}).get('performance_insights', {})
+            
             return f"""Guild Analysis Results for {guild_name}:
 
 **Guild Summary:**
-- Name: {analysis_result['guild_summary'].get('name', 'Unknown')}
-- Realm: {analysis_result['guild_summary'].get('realm', realm)}
-- Member Count: {analysis_result['guild_summary'].get('member_count', 0)}
-- Achievement Points: {analysis_result['guild_summary'].get('achievement_points', 0)}
+- Name: {guild_summary.get('name', 'Unknown')}
+- Realm: {guild_summary.get('realm', realm)}
+- Member Count: {guild_summary.get('member_count', 0)}
+- Achievement Points: {guild_summary.get('achievement_points', 0)}
 
 **Performance Metrics:**
-- Average Item Level: {analysis_result.get('performance_analysis', {}).get('average_item_level', 0):.1f}
-- Active Members: {analysis_result.get('performance_analysis', {}).get('active_members', 0)}
-- Raid Participation: {analysis_result.get('performance_analysis', {}).get('raid_participation', 'Unknown')}
+- Average Item Level: {guild_summary.get('average_item_level', 0):.1f}
+- Max Level Members: {guild_summary.get('max_level_members', 0)}
 
 **AI Insights:**
-{analysis_result.get('ai_insights', 'No insights available')}
+{performance_insights.get('ai_insights', 'No insights available')}
 """
             
     except BlizzardAPIError as e:
@@ -152,7 +155,7 @@ async def analyze_member_performance(realm: str, character_name: str, analysis_d
                 equipment_summary = {"average_item_level": 0, "total_items": 0}
             
             # Process through workflow
-            analysis_result = await workflow.analyze_character(char_profile, analysis_depth)
+            analysis_result = await workflow.analyze_member(char_profile, analysis_depth)
             
             return f"""Character Analysis for {character_name}:
 
