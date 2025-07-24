@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from aiohttp import ClientSession, ClientResponseError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 import json
+from urllib.parse import quote
 
 from ..models.guild import Guild
 from ..models.member import Member
@@ -171,38 +172,47 @@ class BlizzardAPIClient:
     # Guild API methods
     async def get_guild_info(self, realm: str, guild_name: str) -> Dict[str, Any]:
         """Get guild information"""
-        endpoint = f"/data/wow/guild/{realm.lower()}/{guild_name.lower()}"
+        # URL encode the guild name to handle special characters
+        encoded_guild = quote(guild_name.lower(), safe='')
+        endpoint = f"/data/wow/guild/{realm.lower()}/{encoded_guild}"
         return await self.make_request(endpoint)
     
     async def get_guild_roster(self, realm: str, guild_name: str) -> Dict[str, Any]:
         """Get guild roster"""
-        endpoint = f"/data/wow/guild/{realm.lower()}/{guild_name.lower()}/roster"
+        encoded_guild = quote(guild_name.lower(), safe='')
+        endpoint = f"/data/wow/guild/{realm.lower()}/{encoded_guild}/roster"
         return await self.make_request(endpoint)
     
     async def get_guild_achievements(self, realm: str, guild_name: str) -> Dict[str, Any]:
         """Get guild achievements"""
-        endpoint = f"/data/wow/guild/{realm.lower()}/{guild_name.lower()}/achievements"
+        encoded_guild = quote(guild_name.lower(), safe='')
+        endpoint = f"/data/wow/guild/{realm.lower()}/{encoded_guild}/achievements"
         return await self.make_request(endpoint)
     
     async def get_guild_activity(self, realm: str, guild_name: str) -> Dict[str, Any]:
         """Get guild activity"""
-        endpoint = f"/data/wow/guild/{realm.lower()}/{guild_name.lower()}/activity"
+        encoded_guild = quote(guild_name.lower(), safe='')
+        endpoint = f"/data/wow/guild/{realm.lower()}/{encoded_guild}/activity"
         return await self.make_request(endpoint)
     
     # Character API methods
     async def get_character_profile(self, realm: str, character_name: str) -> Dict[str, Any]:
         """Get character profile"""
-        endpoint = f"/profile/wow/character/{realm.lower()}/{character_name.lower()}"
+        # URL encode the character name to handle special characters like é, ñ, etc.
+        encoded_name = quote(character_name.lower(), safe='')
+        endpoint = f"/profile/wow/character/{realm.lower()}/{encoded_name}"
         return await self.make_request(endpoint)
     
     async def get_character_equipment(self, realm: str, character_name: str) -> Dict[str, Any]:
         """Get character equipment"""
-        endpoint = f"/profile/wow/character/{realm.lower()}/{character_name.lower()}/equipment"
+        encoded_name = quote(character_name.lower(), safe='')
+        endpoint = f"/profile/wow/character/{realm.lower()}/{encoded_name}/equipment"
         return await self.make_request(endpoint)
     
     async def get_character_achievements(self, realm: str, character_name: str) -> Dict[str, Any]:
         """Get character achievements"""
-        endpoint = f"/profile/wow/character/{realm.lower()}/{character_name.lower()}/achievements"
+        encoded_name = quote(character_name.lower(), safe='')
+        endpoint = f"/profile/wow/character/{realm.lower()}/{encoded_name}/achievements"
         return await self.make_request(endpoint)
     
     async def get_character_mythic_keystone(self, realm: str, character_name: str) -> Dict[str, Any]:
