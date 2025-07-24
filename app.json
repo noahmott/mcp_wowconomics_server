@@ -1,0 +1,53 @@
+{
+  "name": "WoW Guild Analysis MCP Server",
+  "description": "AI-powered World of Warcraft guild analytics with Discord integration",
+  "keywords": ["fastapi", "mcp", "discord", "wow", "gaming", "analytics"],
+  "website": "https://github.com/yourusername/wow-guild-mcp",
+  "repository": "https://github.com/yourusername/wow-guild-mcp",
+  "stack": "heroku-22",
+  "buildpacks": [
+    {"url": "heroku/python"}
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    },
+    "bot": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": [
+    "heroku-postgresql:mini",
+    "heroku-redis:mini",
+    "papertrail:choklad"
+  ],
+  "env": {
+    "BLIZZARD_CLIENT_ID": {
+      "description": "Blizzard Battle.net API Client ID",
+      "required": true
+    },
+    "BLIZZARD_CLIENT_SECRET": {
+      "description": "Blizzard Battle.net API Client Secret",
+      "required": true
+    },
+    "DISCORD_BOT_TOKEN": {
+      "description": "Discord bot token",
+      "required": true
+    },
+    "OPENAI_API_KEY": {
+      "description": "OpenAI API key for classification and insights",
+      "required": true
+    },
+    "LANGSMITH_API_KEY": {
+      "description": "LangSmith API key for observability",
+      "required": false
+    },
+    "DEBUG": {
+      "description": "Enable debug mode",
+      "value": "false",
+      "required": false
+    }
+  }
+}
