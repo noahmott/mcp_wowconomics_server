@@ -5,7 +5,8 @@ MCP Server Implementation for WoW Guild Analysis
 import os
 import logging
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import json
 
 # MCP imports - will be available when MCP is properly installed
@@ -317,13 +318,48 @@ def setup_mcp_server(app: FastAPI):
     try:
         mcp_server = WoWGuildMCPServer(app)
         
-        # For now, just add a simple endpoint instead of mounting MCP
-        @app.get("/mcp/tools")
-        async def list_tools():
-            return {"tools": list(mcp_server.mcp.tools.keys())}
+        # Simple bearer token authentication
+        security = HTTPBearer()
         
-        @app.post("/mcp/tools/call")
+        async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+            """Verify the bearer token"""
+            token = credentials.credentials
+            expected_token = os.getenv("MCP_AUTH_TOKEN", "default-token-please-change")
+            
+            if token != expected_token:
+                raise HTTPException(status_code=401, detail="Invalid authentication token")
+            return token
+        
+        # MCP protocol endpoints
+        @app.get("/mcp")
+        async def mcp_info():
+            """MCP server information"""
+            return {
+                "mcp_version": "1.0",
+                "server_name": "wow-guild-mcp",
+                "description": "World of Warcraft Guild Analysis MCP Server",
+                "auth_required": True
+            }
+        
+        @app.get("/mcp/tools", dependencies=[Depends(verify_token)])
+        async def list_tools():
+            """List available MCP tools"""
+            tools = []
+            for name, func in mcp_server.mcp.tools.items():
+                tools.append({
+                    "name": name,
+                    "description": func.__doc__.strip() if func.__doc__ else "",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {},  # TODO: Extract from function signature
+                        "required": []
+                    }
+                })
+            return {"tools": tools}
+        
+        @app.post("/mcp/tools/call", dependencies=[Depends(verify_token)])
         async def call_tool(request: dict):
+            """Call an MCP tool"""
             tool_name = request.get("name")
             arguments = request.get("arguments", {})
             
@@ -331,13 +367,19 @@ def setup_mcp_server(app: FastAPI):
                 tool_func = mcp_server.mcp.tools[tool_name]
                 try:
                     result = await tool_func(**arguments)
-                    return result
+                    return {"content": [{"type": "text", "text": json.dumps(result)}]}
                 except Exception as e:
+                    logger.error(f"Tool execution error: {str(e)}")
                     raise HTTPException(status_code=500, detail=str(e))
             else:
                 raise HTTPException(status_code=404, detail=f"Tool {tool_name} not found")
         
-        logger.info("MCP server setup completed successfully")
+        # Add OPTIONS handler for CORS preflight
+        @app.options("/mcp/tools/call")
+        async def options_handler():
+            return {"status": "ok"}
+        
+        logger.info("MCP server setup completed with authentication")
         
         return mcp_server
         
