@@ -114,7 +114,7 @@ class BlizzardAPIClient:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10),
-        retry=retry_if_exception_type((aiohttp.ClientError, BlizzardAPIError))
+        retry=retry_if_exception_type(aiohttp.ClientError)
     )
     async def make_request(self, endpoint: str, params: Optional[Dict] = None) -> Dict[str, Any]:
         """Make authenticated API request with retry logic"""
@@ -150,10 +150,14 @@ class BlizzardAPIClient:
                     raise BlizzardAPIError("Rate limited", status_code=429)
                 
                 if response.status == 404:
+                    # Don't retry 404s - the resource doesn't exist
+                    text = await response.text()
+                    logger.info(f"Resource not found at {url}: {text}")
                     raise BlizzardAPIError("Resource not found", status_code=404)
                 
                 if response.status != 200:
                     text = await response.text()
+                    logger.error(f"API request to {url} failed: {response.status} - {text}")
                     raise BlizzardAPIError(
                         f"API request failed: {response.status} - {text}",
                         status_code=response.status
