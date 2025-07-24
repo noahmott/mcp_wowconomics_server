@@ -320,55 +320,133 @@ def setup_mcp_server(app: FastAPI):
         
         # No authentication for now - Claude.ai will handle MCP protocol
         
-        # Simplified MCP-style endpoints for Claude.ai
-        @app.get("/")
-        async def root():
-            """Root endpoint with server info"""
-            return {
-                "name": "WoW Guild Analysis Server",
-                "version": "1.0.0",
-                "description": "World of Warcraft guild analysis tools",
-                "tools": list(mcp_server.mcp.tools.keys())
-            }
+        # MCP Server-Sent Events endpoint for Claude.ai
+        from fastapi.responses import StreamingResponse
+        import asyncio
+        import json
         
-        @app.get("/tools")
-        async def list_tools():
-            """List available tools"""
-            tools = []
-            for name, func in mcp_server.mcp.tools.items():
-                tools.append({
-                    "name": name,
-                    "description": func.__doc__.strip() if func.__doc__ else "",
-                })
-            return {"tools": tools}
+        @app.get("/sse")
+        async def mcp_sse():
+            """MCP Server-Sent Events endpoint for Claude.ai"""
+            
+            async def event_stream():
+                # Send server info on connection
+                server_info = {
+                    "jsonrpc": "2.0",
+                    "method": "initialize",
+                    "result": {
+                        "protocolVersion": "2024-11-05",
+                        "serverInfo": {
+                            "name": "wow-guild-mcp",
+                            "version": "1.0.0"
+                        },
+                        "capabilities": {
+                            "tools": {
+                                tool_name: {
+                                    "description": func.__doc__.strip() if func.__doc__ else "",
+                                    "inputSchema": {
+                                        "type": "object",
+                                        "properties": {}
+                                    }
+                                } for tool_name, func in mcp_server.mcp.tools.items()
+                            }
+                        }
+                    }
+                }
+                
+                yield f"data: {json.dumps(server_info)}\n\n"
+                
+                # Keep connection alive
+                while True:
+                    await asyncio.sleep(30)
+                    yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+            
+            return StreamingResponse(
+                event_stream(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "Access-Control-Allow-Origin": "*",
+                }
+            )
         
-        @app.post("/call")
-        async def call_tool(request: dict):
-            """Call a tool"""
-            tool_name = request.get("tool") or request.get("name")
-            arguments = request.get("arguments", {})
+        @app.post("/mcp")
+        async def mcp_jsonrpc(request: dict):
+            """Handle MCP JSON-RPC requests"""
+            logger.info(f"MCP request: {request}")
             
-            logger.info(f"Tool call: {tool_name} with args: {arguments}")
+            method = request.get("method")
+            params = request.get("params", {})
+            request_id = request.get("id")
             
-            if tool_name in mcp_server.mcp.tools:
-                tool_func = mcp_server.mcp.tools[tool_name]
-                try:
-                    result = await tool_func(**arguments)
-                    return {"success": True, "result": result}
-                except Exception as e:
-                    logger.error(f"Tool execution error: {str(e)}")
-                    return {"success": False, "error": str(e)}
+            if method == "tools/list":
+                tools = []
+                for name, func in mcp_server.mcp.tools.items():
+                    tools.append({
+                        "name": name,
+                        "description": func.__doc__.strip() if func.__doc__ else "",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {}
+                        }
+                    })
+                
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {"tools": tools}
+                }
+            
+            elif method == "tools/call":
+                tool_name = params.get("name")
+                arguments = params.get("arguments", {})
+                
+                if tool_name in mcp_server.mcp.tools:
+                    try:
+                        tool_func = mcp_server.mcp.tools[tool_name]
+                        result = await tool_func(**arguments)
+                        
+                        return {
+                            "jsonrpc": "2.0",
+                            "id": request_id,
+                            "result": {
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": json.dumps(result)
+                                    }
+                                ]
+                            }
+                        }
+                    except Exception as e:
+                        return {
+                            "jsonrpc": "2.0",
+                            "id": request_id,
+                            "error": {
+                                "code": -32603,
+                                "message": str(e)
+                            }
+                        }
+                else:
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "error": {
+                            "code": -32601,
+                            "message": f"Tool {tool_name} not found"
+                        }
+                    }
+            
             else:
-                return {"success": False, "error": f"Tool {tool_name} not found"}
-        
-        # Legacy MCP endpoints
-        @app.get("/mcp/tools")
-        async def mcp_list_tools():
-            return await list_tools()
-        
-        @app.post("/mcp/tools/call")
-        async def mcp_call_tool(request: dict):
-            return await call_tool(request)
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {
+                        "code": -32601,
+                        "message": f"Method {method} not found"
+                    }
+                }
         
         logger.info("MCP server setup completed with authentication")
         
