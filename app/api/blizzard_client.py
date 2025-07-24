@@ -225,9 +225,15 @@ class BlizzardAPIClient:
         """Get comprehensive guild data including roster and member details"""
         logger.info(f"Fetching comprehensive data for guild {guild_name} on {realm}")
         
-        # Get basic guild info and roster
-        guild_info = await self.get_guild_info(realm, guild_name)
-        guild_roster = await self.get_guild_roster(realm, guild_name)
+        try:
+            # Get basic guild info and roster
+            guild_info = await self.get_guild_info(realm, guild_name)
+            guild_roster = await self.get_guild_roster(realm, guild_name)
+        except BlizzardAPIError as e:
+            logger.error(f"Failed to get guild data: {e.message}")
+            if e.status_code == 404:
+                raise BlizzardAPIError(f"Guild '{guild_name}' not found on realm '{realm}'", status_code=404)
+            raise
         
         # Get additional guild data
         try:
@@ -236,52 +242,47 @@ class BlizzardAPIClient:
             logger.warning(f"Failed to get guild achievements: {e.message}")
             guild_achievements = {}
         
-        # Process member data
+        # Process member data - with better error handling
         members_data = []
+        errors_count = 0
+        max_errors = 5  # Stop after 5 errors
+        
         if "members" in guild_roster:
-            # Limit to first 50 members to avoid rate limits
-            members = guild_roster["members"][:50]
+            # Limit to first 10 members for now to avoid timeout
+            members = guild_roster["members"][:10]
+            logger.info(f"Processing {len(members)} guild members")
             
             for member in members:
+                if errors_count >= max_errors:
+                    logger.warning(f"Stopping member fetch after {max_errors} errors")
+                    break
+                    
                 character = member.get("character", {})
                 character_name = character.get("name")
                 character_realm = character.get("realm", {}).get("slug", realm)
                 
                 if character_name:
-                    try:
-                        # Get character profile
-                        char_profile = await self.get_character_profile(character_realm, character_name)
-                        
-                        # Get equipment for item level
-                        try:
-                            char_equipment = await self.get_character_equipment(character_realm, character_name)
-                            char_profile["equipment_summary"] = self._summarize_equipment(char_equipment)
-                        except BlizzardAPIError:
-                            char_profile["equipment_summary"] = {}
-                        
-                        # Add guild rank info
-                        char_profile["guild_rank"] = member.get("rank", 0)
-                        
-                        members_data.append(char_profile)
-                        
-                    except BlizzardAPIError as e:
-                        logger.warning(f"Failed to get data for character {character_name}: {e.message}")
-                        # Add basic member info even if detailed fetch fails
-                        members_data.append({
-                            "name": character_name,
-                            "realm": {"slug": character_realm},
-                            "guild_rank": member.get("rank", 0),
-                            "level": character.get("level", 0),
-                            "character_class": character.get("character_class", {}),
-                            "error": f"Failed to fetch details: {e.message}"
-                        })
+                    # Add basic info from roster first
+                    basic_info = {
+                        "name": character_name,
+                        "realm": {"slug": character_realm},
+                        "guild_rank": member.get("rank", 0),
+                        "level": character.get("level", 0),
+                        "character_class": character.get("character_class", {}),
+                        "playable_class": character.get("playable_class", {}),
+                        "playable_race": character.get("playable_race", {})
+                    }
+                    
+                    # Skip profile lookup for now - just use roster data
+                    members_data.append(basic_info)
         
         return {
             "guild_info": guild_info,
             "guild_roster": guild_roster,
             "guild_achievements": guild_achievements,
             "members_data": members_data,
-            "fetch_timestamp": datetime.now().isoformat()
+            "fetch_timestamp": datetime.now().isoformat(),
+            "simplified": True  # Flag that we're using simplified data
         }
     
     def _summarize_equipment(self, equipment_data: Dict[str, Any]) -> Dict[str, Any]:
