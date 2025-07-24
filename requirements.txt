@@ -29,8 +29,8 @@ pillow>=10.1.0
 matplotlib>=3.8.0
 seaborn>=0.13.0
 
-# MCP Integration (using mock implementation for now)
-# mcp>=1.12.0
+# MCP Integration with FastMCP 2.0
+fastmcp>=2.0.0
 
 # Security (optional for basic functionality)
 # cryptography>=42.0.0
