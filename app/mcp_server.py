@@ -318,66 +318,57 @@ def setup_mcp_server(app: FastAPI):
     try:
         mcp_server = WoWGuildMCPServer(app)
         
-        # Simple bearer token authentication
-        security = HTTPBearer()
+        # No authentication for now - Claude.ai will handle MCP protocol
         
-        async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
-            """Verify the bearer token"""
-            token = credentials.credentials
-            expected_token = os.getenv("MCP_AUTH_TOKEN", "default-token-please-change")
-            
-            if token != expected_token:
-                raise HTTPException(status_code=401, detail="Invalid authentication token")
-            return token
-        
-        # MCP protocol endpoints
-        @app.get("/mcp")
-        async def mcp_info():
-            """MCP server information"""
+        # Simplified MCP-style endpoints for Claude.ai
+        @app.get("/")
+        async def root():
+            """Root endpoint with server info"""
             return {
-                "mcp_version": "1.0",
-                "server_name": "wow-guild-mcp",
-                "description": "World of Warcraft Guild Analysis MCP Server",
-                "auth_required": True
+                "name": "WoW Guild Analysis Server",
+                "version": "1.0.0",
+                "description": "World of Warcraft guild analysis tools",
+                "tools": list(mcp_server.mcp.tools.keys())
             }
         
-        @app.get("/mcp/tools", dependencies=[Depends(verify_token)])
+        @app.get("/tools")
         async def list_tools():
-            """List available MCP tools"""
+            """List available tools"""
             tools = []
             for name, func in mcp_server.mcp.tools.items():
                 tools.append({
                     "name": name,
                     "description": func.__doc__.strip() if func.__doc__ else "",
-                    "input_schema": {
-                        "type": "object",
-                        "properties": {},  # TODO: Extract from function signature
-                        "required": []
-                    }
                 })
             return {"tools": tools}
         
-        @app.post("/mcp/tools/call", dependencies=[Depends(verify_token)])
+        @app.post("/call")
         async def call_tool(request: dict):
-            """Call an MCP tool"""
-            tool_name = request.get("name")
+            """Call a tool"""
+            tool_name = request.get("tool") or request.get("name")
             arguments = request.get("arguments", {})
+            
+            logger.info(f"Tool call: {tool_name} with args: {arguments}")
             
             if tool_name in mcp_server.mcp.tools:
                 tool_func = mcp_server.mcp.tools[tool_name]
                 try:
                     result = await tool_func(**arguments)
-                    return {"content": [{"type": "text", "text": json.dumps(result)}]}
+                    return {"success": True, "result": result}
                 except Exception as e:
                     logger.error(f"Tool execution error: {str(e)}")
-                    raise HTTPException(status_code=500, detail=str(e))
+                    return {"success": False, "error": str(e)}
             else:
-                raise HTTPException(status_code=404, detail=f"Tool {tool_name} not found")
+                return {"success": False, "error": f"Tool {tool_name} not found"}
         
-        # Add OPTIONS handler for CORS preflight
-        @app.options("/mcp/tools/call")
-        async def options_handler():
-            return {"status": "ok"}
+        # Legacy MCP endpoints
+        @app.get("/mcp/tools")
+        async def mcp_list_tools():
+            return await list_tools()
+        
+        @app.post("/mcp/tools/call")
+        async def mcp_call_tool(request: dict):
+            return await call_tool(request)
         
         logger.info("MCP server setup completed with authentication")
         
