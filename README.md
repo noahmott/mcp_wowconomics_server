@@ -6,6 +6,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![PostgreSQL](https://img.shields.io/badge/postgresql-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Battle.net](https://img.shields.io/badge/battle.net-API-00AEFF?style=for-the-badge&logo=battle.net&logoColor=white)](https://develop.battle.net)
 [![Heroku](https://img.shields.io/badge/heroku-deployed-430098?style=for-the-badge&logo=heroku&logoColor=white)](https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/)
 [![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
@@ -19,6 +20,10 @@
 
 [![FastAPI](https://img.shields.io/badge/fastapi-0.116.1-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
 [![Pandas](https://img.shields.io/badge/pandas-2.3.0-150458?style=flat-square&logo=pandas&logoColor=white)](https://pandas.pydata.org)
+[![NumPy](https://img.shields.io/badge/numpy-1.26.4-013243?style=flat-square&logo=numpy&logoColor=white)](https://numpy.org)
+[![Plotly](https://img.shields.io/badge/plotly-6.2.0-3F4F75?style=flat-square&logo=plotly&logoColor=white)](https://plotly.com)
+[![Discord.py](https://img.shields.io/badge/discord.py-2.5.2-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discordpy.readthedocs.io)
+[![OpenAI](https://img.shields.io/badge/openai-1.57.3-74aa9c?style=flat-square&logo=openai&logoColor=white)](https://openai.com)
 [![Redis](https://img.shields.io/badge/redis-6.2.0-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
 [![SQLAlchemy](https://img.shields.io/badge/sqlalchemy-2.0.32-FCA121?style=flat-square)](https://www.sqlalchemy.org)
 
