@@ -907,6 +907,131 @@ This data comes directly from Blizzard's API endpoints.
         return f"Error getting debug data: {str(e)}"
 
 @mcp.tool()
+async def get_item_info(item_ids: str, region: str = "us") -> str:
+    """
+    Get item names and details from Blizzard's Item API.
+    
+    Fetches official item names and information for given item IDs.
+    
+    Args:
+        item_ids: Comma-separated item IDs (e.g. "18712,37812,210796")
+        region: Region code (us, eu, kr, tw)
+    
+    Returns:
+        Item details including names, quality, type, and icon
+    """
+    try:
+        if not API_AVAILABLE:
+            return "Error: Blizzard API not available"
+        
+        # Parse item IDs
+        ids = [id.strip() for id in item_ids.split(",") if id.strip()]
+        if not ids:
+            return "Error: No valid item IDs provided"
+        
+        # Limit to 20 items per request
+        ids = ids[:20]
+        
+        results = []
+        
+        async with BlizzardAPIClient() as client:
+            for item_id in ids:
+                try:
+                    # Get item data from API
+                    item_endpoint = f"/data/wow/item/{item_id}"
+                    item_data = await client.make_request(
+                        item_endpoint,
+                        {"namespace": f"static-{region}", "locale": "en_US"}
+                    )
+                    
+                    # Get media data for icon
+                    media_endpoint = f"/data/wow/media/item/{item_id}"
+                    media_data = await client.make_request(
+                        media_endpoint,
+                        {"namespace": f"static-{region}", "locale": "en_US"}
+                    )
+                    
+                    # Extract icon URL
+                    icon_url = None
+                    if media_data and "assets" in media_data:
+                        for asset in media_data.get("assets", []):
+                            if asset.get("key") == "icon":
+                                icon_url = asset.get("value")
+                                break
+                    
+                    # Format item info
+                    item_info = {
+                        "id": item_id,
+                        "name": item_data.get("name", "Unknown"),
+                        "quality": item_data.get("quality", {}).get("name", "Unknown"),
+                        "level": item_data.get("level", 0),
+                        "required_level": item_data.get("required_level", 0),
+                        "item_class": item_data.get("item_class", {}).get("name", "Unknown"),
+                        "item_subclass": item_data.get("item_subclass", {}).get("name", "Unknown"),
+                        "inventory_type": item_data.get("inventory_type", {}).get("name", "Unknown"),
+                        "purchase_price": item_data.get("purchase_price", 0),
+                        "sell_price": item_data.get("sell_price", 0),
+                        "max_count": item_data.get("max_count", 0),
+                        "is_stackable": item_data.get("is_stackable", False),
+                        "icon_url": icon_url,
+                        "raw_response": item_data  # Include raw API response
+                    }
+                    
+                    results.append(item_info)
+                    
+                except Exception as e:
+                    results.append({
+                        "id": item_id,
+                        "error": str(e),
+                        "name": f"Error fetching item {item_id}"
+                    })
+            
+            # Format response
+            output = f"""Item Information from Blizzard API
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+📦 **ITEM DETAILS**
+"""
+            
+            for item in results:
+                if "error" in item:
+                    output += f"""
+❌ Item #{item['id']}: {item['error']}
+"""
+                else:
+                    output += f"""
+📌 **{item['name']}** (ID: {item['id']})
+• Quality: {item['quality']}
+• Type: {item['item_class']} - {item['item_subclass']}
+• Item Level: {item['level']}
+• Required Level: {item['required_level']}
+• Slot: {item['inventory_type']}
+• Vendor Price: {item['purchase_price'] // 10000}g {(item['purchase_price'] % 10000) // 100}s {item['purchase_price'] % 100}c
+• Sell Price: {item['sell_price'] // 10000}g {(item['sell_price'] % 10000) // 100}s {item['sell_price'] % 100}c
+• Stackable: {'Yes' if item['is_stackable'] else 'No'} {f"(Max: {item['max_count']})" if item['max_count'] > 0 else ''}
+"""
+                    if item.get('icon_url'):
+                        output += f"• Icon: {item['icon_url']}\n"
+            
+            output += f"""
+
+💡 **USAGE TIPS**
+• Use these item IDs in market analysis tools
+• Check if items are tradeable (some are soulbound)
+• Compare vendor prices to AH prices
+• Quality affects market value (Poor < Common < Uncommon < Rare < Epic < Legendary)
+
+🔍 **RAW API DATA SAMPLE** (First Item)
+{json.dumps(results[0].get('raw_response', {}), indent=2)[:500]}...
+"""
+            
+            return output
+            
+    except Exception as e:
+        logger.error(f"Error getting item info: {str(e)}")
+        return f"Error getting item info: {str(e)}"
+
+@mcp.tool()
 def get_analysis_help() -> str:
     """
     Get help on using the analysis tools effectively.
@@ -996,8 +1121,8 @@ def main():
         port = int(os.getenv("PORT", "8000"))
         
         logger.info("🚀 WoW Economic Analysis Server with FastMCP 2.0")
-        logger.info("🔧 Tools: Market analysis, crafting profits, arbitrage, predictions, debug")
-        logger.info("📊 Registered tools: 6 WoW economic analysis tools")
+        logger.info("🔧 Tools: Market analysis, crafting profits, arbitrage, predictions, debug, item lookup")
+        logger.info("📊 Registered tools: 7 WoW economic analysis tools")
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
         
