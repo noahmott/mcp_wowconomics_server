@@ -443,182 +443,6 @@ Debug Information:
         logger.error(f"Error in crafting analysis: {str(e)}")
         return f"Error analyzing crafting: {str(e)}"
 
-@mcp.tool()
-async def find_arbitrage_opportunities(regions: str = "us,eu") -> str:
-    """
-    Find cross-realm and cross-region arbitrage opportunities.
-    
-    Args:
-        regions: Comma-separated regions to compare
-    
-    Returns:
-        Arbitrage opportunities between realms/regions
-    """
-    try:
-        region_list = [r.strip() for r in regions.split(",")][:2]  # Max 2 regions
-        
-        if not API_AVAILABLE:
-            return "Error: Blizzard API not available"
-        
-        # Sample realms per region
-        sample_realms = {
-            "us": ["stormrage", "area-52", "tichondrius"],
-            "eu": ["draenor", "tarren-mill", "kazzak"]
-        }
-        
-        region_data = {}
-        
-        async with BlizzardAPIClient() as client:
-            for region in region_list:
-                if region not in sample_realms:
-                    continue
-                
-                region_data[region] = {}
-                
-                # Get token price for region
-                token_endpoint = "/data/wow/token/index"
-                token_data = await client.make_request(
-                    token_endpoint,
-                    {"namespace": f"dynamic-{region}", "locale": "en_US"}
-                )
-                region_data[region]["token_price"] = token_data.get("price", 0)
-                
-                # Sample auction data from one realm
-                realm = sample_realms[region][0]
-                realm_endpoint = f"/data/wow/realm/{realm}"
-                realm_data = await client.make_request(
-                    realm_endpoint,
-                    {"namespace": f"dynamic-{region}", "locale": "en_US"}
-                )
-                
-                connected_realm_href = realm_data.get("connected_realm", {}).get("href", "")
-                connected_realm_id = connected_realm_href.split("/")[-1].split("?")[0]
-                
-                auction_endpoint = f"/data/wow/connected-realm/{connected_realm_id}/auctions"
-                auction_data = await client.make_request(
-                    auction_endpoint,
-                    {"namespace": f"dynamic-{region}", "locale": "en_US"}
-                )
-                
-                # Calculate average prices for common items
-                auctions = auction_data.get("auctions", [])
-                item_prices = defaultdict(list)
-                
-                for auction in auctions[:1000]:  # Sample
-                    item_id = auction.get('item', {}).get('id', 0)
-                    buyout = auction.get('buyout', 0)
-                    quantity = auction.get('quantity', 1)
-                    
-                    if buyout > 0 and quantity > 0:
-                        price_per_unit = buyout / quantity
-                        item_prices[item_id].append(price_per_unit)
-                
-                avg_prices = {}
-                for item_id, prices in item_prices.items():
-                    avg_prices[item_id] = sum(prices) / len(prices)
-                
-                region_data[region]["prices"] = avg_prices
-                region_data[region]["realm"] = realm
-        
-        result = f"""Cross-Region Arbitrage Analysis
-Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-🌍 **REGIONS ANALYZED**
-"""
-        
-        for region, data in region_data.items():
-            token_gold = data["token_price"] // 10000 if "token_price" in data else 0
-            result += f"""
-• {region.upper()}: Token = {token_gold:,}g, Realm = {data.get('realm', 'N/A')}"""
-
-        # Find arbitrage opportunities
-        if len(region_data) >= 2:
-            regions = list(region_data.keys())
-            r1, r2 = regions[0], regions[1]
-            
-            # Token arbitrage
-            token1 = region_data[r1].get("token_price", 0) // 10000
-            token2 = region_data[r2].get("token_price", 0) // 10000
-            
-            result += f"""
-
-💱 **TOKEN ARBITRAGE**
-• {r1.upper()} Token: {token1:,}g
-• {r2.upper()} Token: {token2:,}g
-• Difference: {abs(token1 - token2):,}g ({abs(token1 - token2) / min(token1, token2) * 100:.1f}%)
-• Strategy: {'Buy tokens in ' + (r1 if token1 < token2 else r2).upper() + ', transfer value to ' + (r2 if token1 < token2 else r1).upper() if abs(token1 - token2) > token1 * 0.1 else 'Difference too small for profitable arbitrage'}
-"""
-
-            # Item arbitrage
-            prices1 = region_data[r1].get("prices", {})
-            prices2 = region_data[r2].get("prices", {})
-            
-            common_items = set(prices1.keys()) & set(prices2.keys())
-            
-            arbitrage_opps = []
-            for item_id in common_items:
-                p1 = prices1[item_id]
-                p2 = prices2[item_id]
-                diff_pct = abs(p1 - p2) / min(p1, p2) * 100
-                
-                if diff_pct > 20:  # 20% difference threshold
-                    arbitrage_opps.append({
-                        "item_id": item_id,
-                        "price1": p1,
-                        "price2": p2,
-                        "diff_pct": diff_pct,
-                        "buy_region": r1 if p1 < p2 else r2,
-                        "sell_region": r2 if p1 < p2 else r1
-                    })
-            
-            arbitrage_opps.sort(key=lambda x: x['diff_pct'], reverse=True)
-            
-            result += f"""
-
-📦 **ITEM ARBITRAGE OPPORTUNITIES** (Top 5)
-"""
-            
-            for i, opp in enumerate(arbitrage_opps[:5], 1):
-                buy_price = min(opp['price1'], opp['price2'])
-                sell_price = max(opp['price1'], opp['price2'])
-                profit = sell_price - buy_price
-                
-                result += f"""
-{i}. Item #{opp['item_id']}
-   • Buy in {opp['buy_region'].upper()}: {int(buy_price // 10000):,}g
-   • Sell in {opp['sell_region'].upper()}: {int(sell_price // 10000):,}g
-   • Profit: {int(profit // 10000):,}g ({opp['diff_pct']:.1f}% margin)
-"""
-
-        result += f"""
-
-🎯 **ARBITRAGE STRATEGY**
-1. **Token Transfer Method**
-   • Buy tokens in cheaper region
-   • Convert to Battle.net balance
-   • Use for character transfers or game time
-
-2. **Item Transfer Method**
-   • Requires characters on both regions
-   • Focus on high-value, low-volume items
-   • Consider transfer costs
-
-3. **Market Making**
-   • Identify consistent price differences
-   • Set up regular trading routes
-   • Build capital on both regions
-
-⚠️ **IMPORTANT CONSIDERATIONS**
-• Account for transaction fees (5% AH cut)
-• Consider character transfer costs
-• Check item availability on both sides
-• Monitor exchange rate fluctuations"""
-        
-        return result
-        
-    except Exception as e:
-        logger.error(f"Error in arbitrage analysis: {str(e)}")
-        return f"Error analyzing arbitrage: {str(e)}"
 
 @mcp.tool()
 async def predict_market_trends(realm_slug: str = "stormrage", region: str = "us") -> str:
@@ -1055,17 +879,23 @@ def get_analysis_help() -> str:
    • Identifies most profitable recipes
    • Best for: Crafters maximizing profession income
 
-3. **find_arbitrage_opportunities**
-   • Compares prices across regions/realms
-   • Identifies token price differences
-   • Shows cross-region trading opportunities
-   • Best for: Players with multi-region presence
-
-4. **predict_market_trends**
+3. **predict_market_trends**
    • Forecasts price movements
    • Identifies best times to buy/sell
    • Provides seasonal insights
    • Best for: Strategic long-term trading
+
+4. **get_item_info**
+   • Look up item names and details by ID
+   • Get quality, type, vendor prices, and icons
+   • Shows raw API response data
+   • Best for: Identifying items from auction data
+
+5. **debug_api_data**
+   • Shows raw API responses from Blizzard
+   • Verifies real-time data connectivity
+   • Displays auction samples and token prices
+   • Best for: Troubleshooting and verification
 
 📋 **HOW TO USE EFFECTIVELY**
 
@@ -1099,8 +929,9 @@ def get_analysis_help() -> str:
 
 • "Find market opportunities on stormrage"
 • "Analyze crafting profits for alchemy"
-• "Check arbitrage between us and eu"
 • "Predict market trends for area-52"
+• "Get item info for 210796,210799"
+• "Debug API data for stormrage"
 
 ⚠️ **IMPORTANT NOTES**
 • Data updates hourly from Blizzard
@@ -1121,8 +952,8 @@ def main():
         port = int(os.getenv("PORT", "8000"))
         
         logger.info("🚀 WoW Economic Analysis Server with FastMCP 2.0")
-        logger.info("🔧 Tools: Market analysis, crafting profits, arbitrage, predictions, debug, item lookup")
-        logger.info("📊 Registered tools: 7 WoW economic analysis tools")
+        logger.info("🔧 Tools: Market analysis, crafting profits, predictions, debug, item lookup")
+        logger.info("📊 Registered tools: 6 WoW economic analysis tools")
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
         
