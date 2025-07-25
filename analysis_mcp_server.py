@@ -23,8 +23,12 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Create FastMCP server
-mcp = FastMCP("WoW Economic Analysis Server")
+# Create FastMCP server with HTTP configuration for Heroku
+mcp = FastMCP(
+    name="WoW Economic Analysis Server",
+    host="0.0.0.0",
+    port=int(os.getenv("PORT", "8000"))
+)
 
 # Import the Blizzard API client
 try:
@@ -50,7 +54,7 @@ def get_cached_analysis(key: str) -> Optional[Any]:
             return analysis_cache[key]
     return None
 
-@mcp.tool
+@mcp.tool()
 async def analyze_market_opportunities(realm_slug: str = "stormrage", region: str = "us") -> str:
     """
     Find profitable market opportunities on a realm.
@@ -206,7 +210,7 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         logger.error(f"Error in market analysis: {str(e)}")
         return f"Error analyzing market: {str(e)}"
 
-@mcp.tool
+@mcp.tool()
 async def analyze_crafting_profits(realm_slug: str = "stormrage", region: str = "us", profession: str = "all") -> str:
     """
     Analyze crafting profitability across professions.
@@ -368,7 +372,7 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         logger.error(f"Error in crafting analysis: {str(e)}")
         return f"Error analyzing crafting: {str(e)}"
 
-@mcp.tool
+@mcp.tool()
 async def find_arbitrage_opportunities(regions: str = "us,eu") -> str:
     """
     Find cross-realm and cross-region arbitrage opportunities.
@@ -545,7 +549,7 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         logger.error(f"Error in arbitrage analysis: {str(e)}")
         return f"Error analyzing arbitrage: {str(e)}"
 
-@mcp.tool
+@mcp.tool()
 async def predict_market_trends(realm_slug: str = "stormrage", region: str = "us") -> str:
     """
     Predict market trends based on current data and patterns.
@@ -661,7 +665,7 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         logger.error(f"Error in trend prediction: {str(e)}")
         return f"Error predicting trends: {str(e)}"
 
-@mcp.tool
+@mcp.tool()
 def get_analysis_help() -> str:
     """
     Get help on using the analysis tools effectively.
@@ -741,25 +745,26 @@ def get_analysis_help() -> str:
 Remember: The best gold-makers combine multiple strategies!"""
 
 def main():
-    """Main entry point"""
+    """Main entry point for FastMCP 2.0 server."""
     try:
+        # Check for Blizzard API credentials
+        client_id = os.getenv("BLIZZARD_CLIENT_ID")
+        if not client_id:
+            logger.warning("⚠️ No Blizzard API credentials found in environment variables")
+        
         port = int(os.getenv("PORT", "8000"))
         
-        logger.info("🚀 WoW Economic Analysis Server")
-        logger.info("🔧 Features: Market analysis, crafting profits, arbitrage, predictions")
-        logger.info("📊 Tools: 5 advanced analysis functions")
+        logger.info("🚀 WoW Economic Analysis Server with FastMCP 2.0")
+        logger.info("🔧 Tools: Market analysis, crafting profits, arbitrage, predictions")
+        logger.info("📊 Registered tools: 5 WoW economic analysis tools")
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
         
-        # Check API availability
-        client_id = os.getenv("BLIZZARD_CLIENT_ID")
         if client_id:
             logger.info(f"✅ Blizzard API configured: {client_id[:10]}...")
-        else:
-            logger.warning("⚠️ No Blizzard API credentials found")
         
-        # Run server with streamable-http transport for proper session support
-        mcp.run(transport="streamable-http", host="0.0.0.0", port=port)
+        # Run server using FastMCP 2.0 HTTP transport (CRITICAL!)
+        mcp.run(transport="http")
         
     except Exception as e:
         logger.error(f"❌ Error starting server: {e}")
