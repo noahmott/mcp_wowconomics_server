@@ -44,10 +44,13 @@ except ImportError:
 
 try:
     from app.services.market_history import MarketHistoryService
+    from app.services.auction_aggregator import AuctionAggregatorService
     DB_AVAILABLE = True
 except ImportError:
-    logger.warning("MarketHistoryService not available")
+    logger.warning("Database services not available")
     DB_AVAILABLE = False
+    MarketHistoryService = None
+    AuctionAggregatorService = None
 
 # Database setup
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -1045,63 +1048,90 @@ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                     
                     auctions = auction_data.get("auctions", [])
                     
-                    # Analyze and store historical data
-                    item_prices = defaultdict(list)
-                    item_quantities = defaultdict(int)
-                    
-                    for auction in auctions:
-                        item_id = auction.get('item', {}).get('id', 0)
-                        buyout = auction.get('buyout', 0)
-                        quantity = auction.get('quantity', 1)
+                    # Use AuctionAggregatorService to process auction data
+                    if DB_AVAILABLE and AuctionAggregatorService:
+                        # Aggregate auction data
+                        aggregated_data = AuctionAggregatorService.aggregate_auction_data(auctions)
                         
-                        if buyout > 0 and quantity > 0:
-                            price_per_unit = buyout / quantity
-                            item_prices[item_id].append(price_per_unit)
-                            item_quantities[item_id] += quantity
-                    
-                    # Store historical data for items
-                    items_by_volume = sorted(item_quantities.items(), key=lambda x: x[1], reverse=True)
-                    items_updated = 0
-                    
-                    # Determine which items to track with security limits
-                    if include_all_items:
-                        # SECURITY: Still enforce item limit even with include_all_items
-                        remaining_capacity = RESOURCE_LIMITS["MAX_TOTAL_ITEMS"] - total_items_tracked
-                        items_to_track = list(item_quantities.items())[:remaining_capacity]
-                        if len(item_quantities) > remaining_capacity:
-                            logger.warning(f"Limiting items from {len(item_quantities)} to {remaining_capacity} due to total limit")
+                        # Sort by total quantity to get most traded items
+                        items_by_volume = sorted(
+                            aggregated_data.items(), 
+                            key=lambda x: x[1]['total_quantity'], 
+                            reverse=True
+                        )
+                        
+                        # Determine which items to track with security limits
+                        if include_all_items:
+                            # SECURITY: Still enforce item limit even with include_all_items
+                            remaining_capacity = RESOURCE_LIMITS["MAX_TOTAL_ITEMS"] - total_items_tracked
+                            items_to_track = dict(items_by_volume[:remaining_capacity])
+                            if len(aggregated_data) > remaining_capacity:
+                                logger.warning(f"Limiting items from {len(aggregated_data)} to {remaining_capacity} due to total limit")
+                        else:
+                            # Calculate safe item limit for this realm
+                            remaining_capacity = RESOURCE_LIMITS["MAX_TOTAL_ITEMS"] - total_items_tracked
+                            safe_limit = min(top_items, remaining_capacity)
+                            items_to_track = dict(items_by_volume[:safe_limit])
+                        
+                        # Store aggregate snapshots to database
+                        if items_to_track and AsyncSessionLocal:
+                            async with AsyncSessionLocal() as db:
+                                snapshots_stored = await AuctionAggregatorService.store_market_snapshot(
+                                    db, region, realm, connected_realm_id, items_to_track
+                                )
+                                logger.info(f"Stored {snapshots_stored} market snapshots for {realm}-{region}")
+                        
+                        # Also update in-memory historical data for backward compatibility
+                        for item_id, metrics in items_to_track.items():
+                            store_historical_data(
+                                region, realm, item_id, 
+                                metrics['avg_price'], 
+                                metrics['total_quantity']
+                            )
+                        
+                        items_updated = len(items_to_track)
                     else:
-                        # Calculate safe item limit for this realm
+                        # Fallback to old method if new service not available
+                        item_prices = defaultdict(list)
+                        item_quantities = defaultdict(int)
+                        
+                        for auction in auctions:
+                            item_id = auction.get('item', {}).get('id', 0)
+                            buyout = auction.get('buyout', 0)
+                            quantity = auction.get('quantity', 1)
+                            
+                            if buyout > 0 and quantity > 0:
+                                price_per_unit = buyout / quantity
+                                item_prices[item_id].append(price_per_unit)
+                                item_quantities[item_id] += quantity
+                        
+                        items_by_volume = sorted(item_quantities.items(), key=lambda x: x[1], reverse=True)
+                        items_updated = 0
+                        
                         remaining_capacity = RESOURCE_LIMITS["MAX_TOTAL_ITEMS"] - total_items_tracked
                         safe_limit = min(top_items, remaining_capacity)
                         items_to_track = items_by_volume[:safe_limit]
-                    
-                    # Prepare batch for database storage
-                    batch_price_points = []
-                    
-                    for item_id, total_quantity in items_to_track:
-                        # Additional safety check
-                        if total_items_tracked >= RESOURCE_LIMITS["MAX_TOTAL_ITEMS"]:
-                            break
-                            
-                        if item_id in item_prices and item_prices[item_id]:
-                            avg_price = sum(item_prices[item_id]) / len(item_prices[item_id])
-                            # Store in memory
-                            store_historical_data(region, realm, item_id, avg_price, total_quantity)
-                            # Prepare for database
-                            batch_price_points.append({
-                                "region": region,
-                                "realm": realm,
-                                "item_id": item_id,
-                                "price": avg_price,
-                                "quantity": total_quantity
-                            })
-                            items_updated += 1
-                    
-                    # Store batch to database
-                    if batch_price_points and DB_AVAILABLE:
-                        db_count = await store_to_database(batch_price_points)
-                        logger.info(f"Stored {db_count} items to database for {realm}-{region}")
+                        
+                        batch_price_points = []
+                        for item_id, total_quantity in items_to_track:
+                            if total_items_tracked >= RESOURCE_LIMITS["MAX_TOTAL_ITEMS"]:
+                                break
+                                
+                            if item_id in item_prices and item_prices[item_id]:
+                                avg_price = sum(item_prices[item_id]) / len(item_prices[item_id])
+                                store_historical_data(region, realm, item_id, avg_price, total_quantity)
+                                batch_price_points.append({
+                                    "region": region,
+                                    "realm": realm,
+                                    "item_id": item_id,
+                                    "price": avg_price,
+                                    "quantity": total_quantity
+                                })
+                                items_updated += 1
+                        
+                        if batch_price_points and DB_AVAILABLE:
+                            db_count = await store_to_database(batch_price_points)
+                            logger.info(f"Stored {db_count} items to database for {realm}-{region}")
                     
                     result += f"✓ Updated {items_updated} items"
                     success_count += 1
@@ -2012,10 +2042,16 @@ def get_analysis_help() -> str:
    • Shows raw API responses from Blizzard
    • Verifies real-time data connectivity
    • Displays auction samples and token prices
-   • Best for: Troubleshooting and verification
 
-7. **check_staging_data**
+7. **query_aggregate_market_data**
+   • Query comprehensive market aggregate data
+   • Get top items by volume, market depth, velocity metrics
+   • Shows seller concentration and price distributions
+   • Best for: Deep market analysis and volume tracking
+
+8. **check_staging_data**
    • Shows cache statistics and data points
+   • Best for: Troubleshooting and verification
    • Displays cache hit rates and memory usage
    • Tracks data freshness and expiration
    • Best for: Monitoring server performance
@@ -2077,6 +2113,149 @@ def get_analysis_help() -> str:
 
 Remember: The best gold-makers combine multiple strategies!"""
 
+@mcp.tool()
+async def query_aggregate_market_data(
+    realm_slug: str = "stormrage",
+    region: str = "us",
+    query_type: str = "top_items",
+    hours: int = 24,
+    item_id: Optional[int] = None,
+    limit: int = 50
+) -> str:
+    """
+    Query aggregate market data from the database.
+    
+    Args:
+        realm_slug: Realm to query
+        region: Region code
+        query_type: Type of query - "top_items" (items by quantity), "market_depth" (price distribution), 
+                   "price_trends" (historical trends), "market_velocity" (turnover metrics)
+        hours: Hours of data to analyze (for trends)
+        item_id: Specific item ID (required for market_depth and item-specific queries)
+        limit: Number of results to return
+    
+    Returns:
+        Formatted aggregate market data
+    """
+    try:
+        if not DB_AVAILABLE or not AsyncSessionLocal or not AuctionAggregatorService:
+            return "❌ Aggregate market data not available. Database connection required."
+        
+        async with AsyncSessionLocal() as db:
+            result = f"""Aggregate Market Data Query
+Realm: {realm_slug.title()} ({region.upper()})
+Query Type: {query_type}
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+"""
+            
+            if query_type == "top_items":
+                # Get items ranked by quantity
+                items = await AuctionAggregatorService.get_items_by_quantity(
+                    db, region, realm_slug, hours, limit
+                )
+                
+                if not items:
+                    return result + "No data available for this query."
+                
+                result += f"📊 **TOP {len(items)} ITEMS BY MARKET VOLUME** (Last {hours}h)\n\n"
+                
+                for i, item in enumerate(items, 1):
+                    trend_icon = "📈" if item['quantity_trend'] > 0 else "📉" if item['quantity_trend'] < 0 else "➡️"
+                    result += f"{i}. **Item #{item['item_id']}** {trend_icon}\n"
+                    result += f"   • Avg Quantity: {item['avg_quantity']:,.0f} units\n"
+                    result += f"   • Avg Price: {int(item['avg_price'] // 10000):,}g\n"
+                    result += f"   • Total Auctions: {item['total_auctions']:,}\n"
+                    result += f"   • Snapshots: {item['snapshots_count']}\n"
+                    result += f"   • Trend: {item['quantity_trend']*100:+.1f}%\n\n"
+                
+            elif query_type == "market_depth" and item_id:
+                # Get price distribution for an item
+                depth_data = await AuctionAggregatorService.get_market_depth(
+                    db, region, realm_slug, item_id
+                )
+                
+                if not depth_data:
+                    return result + f"No market depth data for item #{item_id}."
+                
+                result += f"📊 **MARKET DEPTH - Item #{item_id}**\n\n"
+                result += "Price Point | Quantity | Sellers | Market Share | Cumulative\n"
+                result += "-" * 60 + "\n"
+                
+                for level in depth_data:
+                    result += f"{int(level['price_point'] // 10000):>10,}g | "
+                    result += f"{level['total_quantity']:>8} | "
+                    result += f"{level['seller_count']:>7} | "
+                    result += f"{level['market_share']:>11.1f}% | "
+                    result += f"{level['cumulative_quantity']:>10}\n"
+                
+            elif query_type == "price_trends" and item_id:
+                # Get historical price trends from market history
+                trends = await MarketHistoryService.get_price_trends(
+                    db, region, realm_slug, item_id, hours
+                )
+                
+                if not trends:
+                    return result + f"No price trend data for item #{item_id}."
+                
+                result += f"📈 **PRICE TRENDS - Item #{item_id}** (Last {hours}h)\n\n"
+                result += f"• Average Price: {int(trends['avg_price'] // 10000):,}g\n"
+                result += f"• Price Range: {int(trends['min_price'] // 10000):,}g - {int(trends['max_price'] // 10000):,}g\n"
+                result += f"• Volatility: {trends['price_volatility']*100:.1f}%\n"
+                result += f"• Data Points: {trends['data_points']}\n"
+                result += f"• Period: {trends['oldest_timestamp']} to {trends['newest_timestamp']}\n"
+                
+            elif query_type == "market_velocity":
+                # Get recent market velocity data
+                velocity_query = await db.execute(text("""
+                    SELECT item_id, SUM(listings_added) as total_added,
+                           SUM(listings_removed) as total_removed,
+                           SUM(estimated_sales) as total_sales,
+                           AVG(price_volatility) as avg_volatility
+                    FROM market_velocity
+                    WHERE region = :region 
+                      AND realm_slug = :realm
+                      AND measurement_date >= CURRENT_DATE - INTERVAL '1 day' * :days
+                    GROUP BY item_id
+                    ORDER BY total_sales DESC
+                    LIMIT :limit
+                """), {
+                    'region': region,
+                    'realm': realm_slug,
+                    'days': hours // 24 if hours >= 24 else 1,
+                    'limit': limit
+                })
+                
+                velocity_items = velocity_query.fetchall()
+                
+                if not velocity_items:
+                    result += "No velocity data available. Market velocity tracking will begin with the next update.\n"
+                else:
+                    result += f"🚀 **MARKET VELOCITY** (Last {hours}h)\n\n"
+                    result += "Item ID | Added | Removed | Est. Sales | Volatility\n"
+                    result += "-" * 55 + "\n"
+                    
+                    for item in velocity_items:
+                        result += f"{item.item_id:>7} | "
+                        result += f"{item.total_added:>5} | "
+                        result += f"{item.total_removed:>7} | "
+                        result += f"{item.total_sales:>10} | "
+                        result += f"{item.avg_volatility*100:>9.1f}%\n"
+            
+            else:
+                result += f"❌ Invalid query type '{query_type}' or missing required parameters.\n"
+                result += "\nAvailable query types:\n"
+                result += "• top_items - Items ranked by market volume\n"
+                result += "• market_depth - Price distribution (requires item_id)\n"
+                result += "• price_trends - Historical price data (requires item_id)\n"
+                result += "• market_velocity - Turnover and sales metrics\n"
+            
+            return result
+            
+    except Exception as e:
+        logger.error(f"Error querying aggregate data: {str(e)}")
+        return f"Error querying aggregate market data: {str(e)}"
+
 def main():
     """Main entry point for FastMCP 2.0 server."""
     try:
@@ -2088,8 +2267,8 @@ def main():
         port = int(os.getenv("PORT", "8000"))
         
         logger.info("🚀 WoW Economic Analysis Server with FastMCP 2.0")
-        logger.info("🔧 Tools: Market analysis, crafting profits, predictions, historical data, debug, item lookup, staging")
-        logger.info("📊 Registered tools: 10 WoW economic analysis tools")
+        logger.info("🔧 Tools: Market analysis, crafting profits, predictions, historical data, debug, item lookup, staging, aggregate queries")
+        logger.info("📊 Registered tools: 11 WoW economic analysis tools")
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
         
