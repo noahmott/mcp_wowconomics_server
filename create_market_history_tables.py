@@ -40,11 +40,24 @@ async def create_market_history_tables():
                     price NUMERIC(20,2) NOT NULL,
                     quantity INTEGER NOT NULL,
                     timestamp TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-                    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
-                    INDEX idx_market_lookup (region, realm_slug, item_id, timestamp DESC),
-                    INDEX idx_market_timestamp (timestamp DESC),
-                    INDEX idx_market_item (item_id, timestamp DESC)
+                    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc')
                 );
+            """))
+            
+            # Create indexes separately
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_market_lookup 
+                ON market_history (region, realm_slug, item_id, timestamp DESC);
+            """))
+            
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_market_timestamp 
+                ON market_history (timestamp DESC);
+            """))
+            
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_market_item 
+                ON market_history (item_id, timestamp DESC);
             """))
             
             # Create item_metadata table for item information
