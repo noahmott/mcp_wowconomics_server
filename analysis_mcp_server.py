@@ -16,6 +16,9 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 
 # Load environment variables
 load_dotenv()
@@ -31,13 +34,37 @@ logger = logging.getLogger(__name__)
 # Create FastMCP server
 mcp = FastMCP("WoW Economic Analysis Server")
 
-# Import the Blizzard API client
+# Import the Blizzard API client and database services
 try:
     from app.api.blizzard_client import BlizzardAPIClient
     API_AVAILABLE = True
 except ImportError:
     logger.warning("BlizzardAPIClient not available")
     API_AVAILABLE = False
+
+try:
+    from app.services.market_history import MarketHistoryService
+    DB_AVAILABLE = True
+except ImportError:
+    logger.warning("MarketHistoryService not available")
+    DB_AVAILABLE = False
+
+# Database setup
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+
+# Create async engine and session
+engine = None
+AsyncSessionLocal = None
+if DATABASE_URL:
+    try:
+        engine = create_async_engine(DATABASE_URL, echo=False, pool_size=20, max_overflow=0)
+        AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        logger.info("Database connection configured")
+    except Exception as e:
+        logger.error(f"Failed to configure database: {e}")
+        DB_AVAILABLE = False
 
 # Analysis cache with longer TTL for processed data
 analysis_cache = {}
@@ -82,9 +109,10 @@ def store_historical_data(region: str, realm: str, item_id: int, price: float, q
         "quantity": quantity
     }
     
+    # Store in memory for immediate access
     historical_data[key]["data_points"].append(data_point)
     
-    # Keep only recent data points
+    # Keep only recent data points in memory
     if len(historical_data[key]["data_points"]) > HISTORY_MAX_ENTRIES:
         historical_data[key]["data_points"] = historical_data[key]["data_points"][-HISTORY_MAX_ENTRIES:]
     
@@ -94,12 +122,38 @@ def store_historical_data(region: str, realm: str, item_id: int, price: float, q
     historical_data[key]["region"] = region
     historical_data[key]["realm"] = realm
 
+async def store_to_database(price_points: List[Dict[str, Any]]):
+    """Store price points to database asynchronously"""
+    if not DB_AVAILABLE or not AsyncSessionLocal:
+        return 0
+    
+    try:
+        async with AsyncSessionLocal() as db:
+            count = await MarketHistoryService.bulk_store_price_points(db, price_points)
+            return count
+    except Exception as e:
+        logger.error(f"Failed to store to database: {e}")
+        return 0
+
+async def get_historical_trends_from_db(region: str, realm: str, item_id: int, hours: int = 24) -> Optional[Dict[str, Any]]:
+    """Get historical trends from database"""
+    if not DB_AVAILABLE or not AsyncSessionLocal:
+        return None
+    
+    try:
+        async with AsyncSessionLocal() as db:
+            return await MarketHistoryService.get_price_trends(db, region, realm, item_id, hours)
+    except Exception as e:
+        logger.error(f"Failed to get trends from database: {e}")
+        return None
+
 def get_historical_trends(region: str, realm: str, item_id: int, hours: int = 24) -> Dict[str, Any]:
     """Analyze historical price trends for an item"""
     key = f"{region}_{realm}_{item_id}"
     
+    # First check in-memory data
     if key not in historical_data or not historical_data[key]["data_points"]:
-        return {"error": "No historical data available"}
+        return {"error": "No historical data available", "note": "Data will accumulate over time"}
     
     data_points = historical_data[key]["data_points"]
     cutoff_time = datetime.now() - timedelta(hours=hours)
@@ -111,7 +165,7 @@ def get_historical_trends(region: str, realm: str, item_id: int, hours: int = 24
     ]
     
     if not recent_points:
-        return {"error": "No data in specified time range"}
+        return {"error": "No data in specified time range", "note": "Try a longer time range"}
     
     prices = [dp["price"] for dp in recent_points]
     quantities = [dp["quantity"] for dp in recent_points]
@@ -139,7 +193,8 @@ def get_historical_trends(region: str, realm: str, item_id: int, hours: int = 24
         "price_volatility": price_volatility,
         "price_trend": price_trend,
         "avg_quantity": sum(quantities) / len(quantities),
-        "time_range_hours": hours
+        "time_range_hours": hours,
+        "source": "memory"
     }
 
 def save_historical_data():
@@ -194,8 +249,26 @@ def load_historical_data():
     except Exception as e:
         logger.error(f"Failed to load historical data: {e}")
 
+async def load_recent_from_database():
+    """Load recent data from database into memory"""
+    if not DB_AVAILABLE or not AsyncSessionLocal:
+        return
+    
+    try:
+        async with AsyncSessionLocal() as db:
+            # Get snapshot history
+            snapshots = await MarketHistoryService.get_snapshot_history(db, hours=24)
+            logger.info(f"Database has {len(snapshots)} snapshots in last 24 hours")
+            
+            # Could also load recent price data for popular items here
+            # For now, just log the status
+    except Exception as e:
+        logger.error(f"Failed to load from database: {e}")
+
 # Load historical data on startup
 load_historical_data()
+
+# Note: Database loading happens asynchronously when server starts
 
 @mcp.tool()
 async def analyze_market_opportunities(realm_slug: str = "stormrage", region: str = "us") -> str:
@@ -1003,6 +1076,9 @@ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                         safe_limit = min(top_items, remaining_capacity)
                         items_to_track = items_by_volume[:safe_limit]
                     
+                    # Prepare batch for database storage
+                    batch_price_points = []
+                    
                     for item_id, total_quantity in items_to_track:
                         # Additional safety check
                         if total_items_tracked >= RESOURCE_LIMITS["MAX_TOTAL_ITEMS"]:
@@ -1010,8 +1086,22 @@ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                             
                         if item_id in item_prices and item_prices[item_id]:
                             avg_price = sum(item_prices[item_id]) / len(item_prices[item_id])
+                            # Store in memory
                             store_historical_data(region, realm, item_id, avg_price, total_quantity)
+                            # Prepare for database
+                            batch_price_points.append({
+                                "region": region,
+                                "realm": realm,
+                                "item_id": item_id,
+                                "price": avg_price,
+                                "quantity": total_quantity
+                            })
                             items_updated += 1
+                    
+                    # Store batch to database
+                    if batch_price_points and DB_AVAILABLE:
+                        db_count = await store_to_database(batch_price_points)
+                        logger.info(f"Stored {db_count} items to database for {realm}-{region}")
                     
                     result += f"✓ Updated {items_updated} items"
                     success_count += 1
@@ -1024,6 +1114,19 @@ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         
         # Save historical data
         save_historical_data()
+        
+        # Record snapshot to database
+        execution_time = time.time() - start_time
+        if DB_AVAILABLE and AsyncSessionLocal:
+            try:
+                async with AsyncSessionLocal() as db:
+                    await MarketHistoryService.record_snapshot(
+                        db, success_count, total_items_tracked, execution_time,
+                        success=(success_count > 0), error_message=errors[0] if errors else None
+                    )
+                    logger.info(f"Recorded snapshot: {success_count} realms, {total_items_tracked} items")
+            except Exception as e:
+                logger.error(f"Failed to record snapshot: {e}")
         
         # Update rate limit timestamp
         analysis_cache[last_update_key] = datetime.now()
@@ -1081,6 +1184,61 @@ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
     except Exception as e:
         logger.error(f"Error updating historical database: {str(e)}")
         return f"Error updating historical database: {str(e)}"
+
+@mcp.tool()
+async def check_database_status() -> str:
+    """Check the status of historical data in the database"""
+    if not DB_AVAILABLE or not AsyncSessionLocal:
+        return "❌ Database connection not available. Using in-memory storage only."
+    
+    try:
+        async with AsyncSessionLocal() as db:
+            # Check connection
+            result = await db.execute(text("SELECT 1"))
+            result.scalar()
+            
+            # Get counts
+            history_count = await db.execute(text("SELECT COUNT(*) FROM market_history"))
+            history_total = history_count.scalar()
+            
+            snapshot_count = await db.execute(text("SELECT COUNT(*) FROM market_snapshots"))
+            snapshot_total = snapshot_count.scalar()
+            
+            # Get recent snapshots
+            snapshots = await MarketHistoryService.get_snapshot_history(db, hours=24)
+            
+            # Get data age
+            oldest_query = await db.execute(text("""
+                SELECT MIN(timestamp) as oldest, MAX(timestamp) as newest 
+                FROM market_history
+            """))
+            oldest_row = oldest_query.fetchone()
+            
+            status = f"""📊 **DATABASE STATUS**
+
+✅ Connection: Active
+📈 Market History Records: {history_total:,}
+📸 Update Snapshots: {snapshot_total}
+🕐 Last 24h Updates: {len(snapshots)}
+
+**Data Timeline:**
+• Oldest Data: {oldest_row.oldest.strftime('%Y-%m-%d %H:%M') if oldest_row.oldest else 'No data yet'}
+• Newest Data: {oldest_row.newest.strftime('%Y-%m-%d %H:%M') if oldest_row.newest else 'No data yet'}
+
+**Recent Updates:**
+"""
+            for snap in snapshots[:5]:
+                status += f"• {snap['snapshot_time']}: {snap['realms_updated']} realms, {snap['items_tracked']} items\n"
+            
+            if not snapshots:
+                status += "• No updates in the last 24 hours\n"
+            
+            status += "\n💾 Data is persisting across restarts!"
+            
+            return status
+            
+    except Exception as e:
+        return f"❌ Database error: {str(e)}"
 
 @mcp.tool()
 async def analyze_with_details(analysis_type: str = "volatility", realm_slug: str = "stormrage", region: str = "us", top_n: int = 20) -> str:
