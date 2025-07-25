@@ -263,6 +263,23 @@ async def analyze_crafting_profits(realm_slug: str = "stormrage", region: str = 
             
             auctions = auction_data.get("auctions", [])
             
+            # Check if we have auction data
+            if not auctions:
+                return f"""Crafting Profitability Analysis - {realm_data.get('name', realm_slug.title())} ({region.upper()})
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+⚠️ **NO AUCTION DATA AVAILABLE**
+
+Unable to analyze crafting profits because:
+• No active auctions found on this realm
+• This might be a connection issue or the realm might be offline
+
+Please try:
+1. Check if the realm name is correct
+2. Try a different realm
+3. Try again in a few minutes
+"""
+            
             # Calculate average prices
             item_prices = defaultdict(list)
             for auction in auctions:
@@ -285,6 +302,9 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
             
             profitable_crafts = []
+            materials_not_found = []
+            products_not_found = []
+            unprofitable_count = 0
             
             for prof_name, recipes in common_crafts.items():
                 if profession != "all" and profession.lower() != prof_name.lower():
@@ -297,14 +317,19 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                     mat_cost = 0
                     mat_available = True
                     
+                    missing_mats = []
                     for mat_id in recipe_data["mats"]:
                         if mat_id in avg_prices:
                             mat_cost += avg_prices[mat_id]
                         else:
                             mat_available = False
-                            break
+                            missing_mats.append(mat_id)
                     
-                    if mat_available and recipe_data["product"] in avg_prices:
+                    if not mat_available:
+                        materials_not_found.append((recipe_name, missing_mats))
+                    elif recipe_data["product"] not in avg_prices:
+                        products_not_found.append((recipe_name, recipe_data["product"]))
+                    elif mat_available and recipe_data["product"] in avg_prices:
                         product_price = avg_prices[recipe_data["product"]]
                         profit = product_price - mat_cost
                         margin = (profit / mat_cost * 100) if mat_cost > 0 else 0
@@ -324,6 +349,8 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
   Sells for: {int(product_price // 10000):,}g
   Profit: {int(profit // 10000):,}g ({margin:.1f}% margin)
 """
+                        else:
+                            unprofitable_count += 1
 
             # Sort by profit margin
             profitable_crafts.sort(key=lambda x: x['margin'], reverse=True)
@@ -342,6 +369,36 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
    • ROI: {craft['margin']:.1f}%
 """
 
+            # Add diagnostics if no profitable crafts found
+            if not profitable_crafts:
+                result += f"""
+
+⚠️ **NO PROFITABLE CRAFTS FOUND**
+
+Analysis Details:
+• Total auction listings: {len(auctions):,}
+• Unique items with prices: {len(avg_prices):,}
+• Unprofitable recipes (<10% margin): {unprofitable_count}
+• Missing materials: {len(materials_not_found)} recipes
+• Missing products: {len(products_not_found)} recipes
+
+Common Issues:
+1. The hardcoded item IDs might not match current game items
+2. Materials or products might not be traded on this realm
+3. Market prices might be too competitive (low margins)
+
+Debug Information:
+"""
+                if materials_not_found[:3]:  # Show first 3
+                    result += "\nMissing Materials:\n"
+                    for recipe, mats in materials_not_found[:3]:
+                        result += f"• {recipe}: Items {mats}\n"
+                
+                if products_not_found[:3]:  # Show first 3
+                    result += "\nMissing Products:\n"
+                    for recipe, product in products_not_found[:3]:
+                        result += f"• {recipe}: Item #{product}\n"
+            
             result += f"""
 
 📊 **MARKET INSIGHTS**
