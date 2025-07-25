@@ -346,7 +346,7 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 📊 **MARKET INSIGHTS**
 • Best Margins: {profitable_crafts[0]['profession'] if profitable_crafts else 'N/A'}
-• Average ROI: {sum(c['margin'] for c in profitable_crafts) / len(profitable_crafts):.1f if profitable_crafts else 0}% 
+• Average ROI: {(sum(c['margin'] for c in profitable_crafts) / len(profitable_crafts) if profitable_crafts else 0):.1f}% 
 • Total Profitable Recipes: {len(profitable_crafts)}
 
 💡 **CRAFTING STRATEGY**
