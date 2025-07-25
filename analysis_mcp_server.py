@@ -38,6 +38,11 @@ except ImportError:
 analysis_cache = {}
 analysis_cache_ttl = {}
 
+# Historical data storage for trend analysis
+historical_data = defaultdict(lambda: defaultdict(list))
+HISTORY_MAX_ENTRIES = 288  # 24 hours of 5-minute intervals
+HISTORY_FILE = "historical_market_data.json"
+
 def cache_analysis(key: str, data: Any, ttl_hours: int = 1):
     """Cache analysis results"""
     analysis_cache[key] = data
@@ -49,6 +54,103 @@ def get_cached_analysis(key: str) -> Optional[Any]:
         if datetime.now() < analysis_cache_ttl[key]:
             return analysis_cache[key]
     return None
+
+def store_historical_data(region: str, realm: str, item_id: int, price: float, quantity: int):
+    """Store price data point for historical tracking"""
+    key = f"{region}_{realm}_{item_id}"
+    timestamp = datetime.now().isoformat()
+    
+    data_point = {
+        "timestamp": timestamp,
+        "price": price,
+        "quantity": quantity
+    }
+    
+    historical_data[key]["data_points"].append(data_point)
+    
+    # Keep only recent data points
+    if len(historical_data[key]["data_points"]) > HISTORY_MAX_ENTRIES:
+        historical_data[key]["data_points"] = historical_data[key]["data_points"][-HISTORY_MAX_ENTRIES:]
+    
+    # Update metadata
+    historical_data[key]["last_updated"] = timestamp
+    historical_data[key]["item_id"] = item_id
+    historical_data[key]["region"] = region
+    historical_data[key]["realm"] = realm
+
+def get_historical_trends(region: str, realm: str, item_id: int, hours: int = 24) -> Dict[str, Any]:
+    """Analyze historical price trends for an item"""
+    key = f"{region}_{realm}_{item_id}"
+    
+    if key not in historical_data or not historical_data[key]["data_points"]:
+        return {"error": "No historical data available"}
+    
+    data_points = historical_data[key]["data_points"]
+    cutoff_time = datetime.now() - timedelta(hours=hours)
+    
+    # Filter data points within time range
+    recent_points = [
+        dp for dp in data_points 
+        if datetime.fromisoformat(dp["timestamp"]) > cutoff_time
+    ]
+    
+    if not recent_points:
+        return {"error": "No data in specified time range"}
+    
+    prices = [dp["price"] for dp in recent_points]
+    quantities = [dp["quantity"] for dp in recent_points]
+    
+    # Calculate trends
+    avg_price = sum(prices) / len(prices)
+    min_price = min(prices)
+    max_price = max(prices)
+    price_volatility = (max_price - min_price) / avg_price if avg_price > 0 else 0
+    
+    # Price direction
+    if len(prices) >= 2:
+        recent_avg = sum(prices[-5:]) / len(prices[-5:])
+        older_avg = sum(prices[:5]) / min(5, len(prices))
+        price_trend = (recent_avg - older_avg) / older_avg if older_avg > 0 else 0
+    else:
+        price_trend = 0
+    
+    return {
+        "data_points": len(recent_points),
+        "avg_price": avg_price,
+        "min_price": min_price,
+        "max_price": max_price,
+        "current_price": prices[-1],
+        "price_volatility": price_volatility,
+        "price_trend": price_trend,
+        "avg_quantity": sum(quantities) / len(quantities),
+        "time_range_hours": hours
+    }
+
+def save_historical_data():
+    """Save historical data to file"""
+    try:
+        # Convert defaultdict to regular dict for JSON serialization
+        data_to_save = {k: dict(v) for k, v in historical_data.items()}
+        with open(HISTORY_FILE, 'w') as f:
+            json.dump(data_to_save, f)
+        logger.info(f"Saved historical data: {len(data_to_save)} items")
+    except Exception as e:
+        logger.error(f"Failed to save historical data: {e}")
+
+def load_historical_data():
+    """Load historical data from file"""
+    global historical_data
+    try:
+        if os.path.exists(HISTORY_FILE):
+            with open(HISTORY_FILE, 'r') as f:
+                loaded_data = json.load(f)
+                historical_data = defaultdict(lambda: defaultdict(list), loaded_data)
+                logger.info(f"Loaded historical data: {len(loaded_data)} items")
+    except Exception as e:
+        logger.error(f"Failed to load historical data: {e}")
+
+# Load historical data on startup
+load_historical_data()
 
 @mcp.tool()
 async def analyze_market_opportunities(realm_slug: str = "stormrage", region: str = "us") -> str:
@@ -110,6 +212,13 @@ async def analyze_market_opportunities(realm_slug: str = "stormrage", region: st
                     price_per_unit = buyout / quantity
                     item_prices[item_id].append(price_per_unit)
                     item_quantities[item_id] += quantity
+            
+            # Store historical data for top traded items
+            items_by_volume = sorted(item_quantities.items(), key=lambda x: x[1], reverse=True)
+            for item_id, total_quantity in items_by_volume[:100]:  # Track top 100 items by volume
+                if item_id in item_prices and item_prices[item_id]:
+                    avg_price = sum(item_prices[item_id]) / len(item_prices[item_id])
+                    store_historical_data(region, realm_slug, item_id, avg_price, total_quantity)
             
             # Find opportunities
             opportunities = []
@@ -445,120 +554,240 @@ Debug Information:
 
 
 @mcp.tool()
-async def predict_market_trends(realm_slug: str = "stormrage", region: str = "us") -> str:
+async def predict_market_trends(realm_slug: str = "stormrage", region: str = "us", item_ids: Optional[str] = None) -> str:
     """
-    Predict market trends based on current data and patterns.
+    Predict market trends based on historical data and current patterns.
     
     Args:
         realm_slug: Realm to analyze
         region: Region code
+        item_ids: Comma-separated item IDs to analyze (optional)
     
     Returns:
-        Market trend predictions and recommendations
+        Market trend predictions based on real historical data
     """
     try:
         if not API_AVAILABLE:
             return "Error: Blizzard API not available"
         
         async with BlizzardAPIClient() as client:
-            # Get current token price
+            # Get current data
             token_endpoint = "/data/wow/token/index"
             token_data = await client.make_request(
                 token_endpoint,
                 {"namespace": f"dynamic-{region}", "locale": "en_US"}
             )
             
-            # Get auction data
             realm_endpoint = f"/data/wow/realm/{realm_slug}"
             realm_data = await client.make_request(
                 realm_endpoint,
                 {"namespace": f"dynamic-{region}", "locale": "en_US"}
             )
             
-            connected_realm_href = realm_data.get("connected_realm", {}).get("href", "")
-            connected_realm_id = connected_realm_href.split("/")[-1].split("?")[0]
-            
-            auction_endpoint = f"/data/wow/connected-realm/{connected_realm_id}/auctions"
-            auction_data = await client.make_request(
-                auction_endpoint,
-                {"namespace": f"dynamic-{region}", "locale": "en_US"}
-            )
-            
-            auctions = auction_data.get("auctions", [])
             token_price = token_data.get("price", 0)
             
-            # Analyze patterns
+            result = f"""Market Trend Analysis - {realm_data.get('name', realm_slug.title())} ({region.upper()})
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+📊 **CURRENT MARKET CONDITIONS**
+• Token Price: {token_price // 10000:,}g
+"""
+            
+            # Analyze specific items if provided
+            if item_ids:
+                item_list = [int(id.strip()) for id in item_ids.split(",") if id.strip().isdigit()]
+                
+                result += f"\n📈 **ITEM-SPECIFIC TRENDS**\n"
+                
+                for item_id in item_list[:10]:  # Limit to 10 items
+                    trends = get_historical_trends(region, realm_slug, item_id, hours=24)
+                    
+                    if "error" not in trends:
+                        price_change = trends['price_trend'] * 100
+                        volatility = trends['price_volatility'] * 100
+                        
+                        # Determine trend direction
+                        if price_change > 5:
+                            trend_icon = "📈"
+                            trend_text = "RISING"
+                            action = "SELL"
+                        elif price_change < -5:
+                            trend_icon = "📉"
+                            trend_text = "FALLING"
+                            action = "BUY"
+                        else:
+                            trend_icon = "➡️"
+                            trend_text = "STABLE"
+                            action = "HOLD"
+                        
+                        result += f"""
+**Item #{item_id}** {trend_icon}
+• Current Price: {int(trends['current_price'] // 10000):,}g
+• 24h Average: {int(trends['avg_price'] // 10000):,}g
+• Price Range: {int(trends['min_price'] // 10000):,}g - {int(trends['max_price'] // 10000):,}g
+• Trend: {trend_text} ({price_change:+.1f}%)
+• Volatility: {volatility:.1f}%
+• Data Points: {trends['data_points']}
+• Recommendation: **{action}**
+"""
+                    else:
+                        result += f"\n**Item #{item_id}**\n• No historical data available\n"
+            
+            # General market trends from available data
+            all_items_with_history = []
+            for key in historical_data:
+                if key.startswith(f"{region}_{realm_slug}_"):
+                    item_id = historical_data[key].get("item_id")
+                    if item_id:
+                        trends = get_historical_trends(region, realm_slug, item_id, hours=24)
+                        if "error" not in trends:
+                            all_items_with_history.append({
+                                "item_id": item_id,
+                                "trend": trends['price_trend'],
+                                "volatility": trends['price_volatility'],
+                                "volume": trends['avg_quantity']
+                            })
+            
+            if all_items_with_history:
+                # Calculate market-wide metrics
+                rising_items = sum(1 for item in all_items_with_history if item['trend'] > 0.05)
+                falling_items = sum(1 for item in all_items_with_history if item['trend'] < -0.05)
+                stable_items = len(all_items_with_history) - rising_items - falling_items
+                
+                avg_volatility = sum(item['volatility'] for item in all_items_with_history) / len(all_items_with_history)
+                
+                # Sort by trend
+                top_gainers = sorted(all_items_with_history, key=lambda x: x['trend'], reverse=True)[:5]
+                top_losers = sorted(all_items_with_history, key=lambda x: x['trend'])[:5]
+                
+                result += f"""
+
+📊 **MARKET-WIDE ANALYSIS** (Based on {len(all_items_with_history)} tracked items)
+• Rising Items: {rising_items} ({rising_items/len(all_items_with_history)*100:.1f}%)
+• Falling Items: {falling_items} ({falling_items/len(all_items_with_history)*100:.1f}%)
+• Stable Items: {stable_items} ({stable_items/len(all_items_with_history)*100:.1f}%)
+• Average Volatility: {avg_volatility*100:.1f}%
+• Market Sentiment: {'Bullish' if rising_items > falling_items else 'Bearish' if falling_items > rising_items else 'Neutral'}
+
+🚀 **TOP GAINERS** (24h)
+"""
+                for i, item in enumerate(top_gainers, 1):
+                    result += f"{i}. Item #{item['item_id']}: {item['trend']*100:+.1f}%\n"
+                
+                result += f"""
+📉 **TOP LOSERS** (24h)
+"""
+                for i, item in enumerate(top_losers, 1):
+                    result += f"{i}. Item #{item['item_id']}: {item['trend']*100:+.1f}%\n"
+            
+            # Time-based patterns
             current_hour = datetime.now().hour
             current_day = datetime.now().strftime("%A")
             
-            result = f"""Market Trend Predictions - {realm_data.get('name', realm_slug.title())} ({region.upper()})
-Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+            result += f"""
 
-📅 **CURRENT MARKET CONDITIONS**
+⏰ **TIME-BASED PATTERNS**
+• Current Time: {current_hour}:00 server time
 • Day: {current_day}
-• Time: {current_hour}:00 server time
-• Token Price: {token_price // 10000:,}g
-• Active Auctions: {len(auctions):,}
-• Market Activity: {'High' if len(auctions) > 50000 else 'Medium' if len(auctions) > 20000 else 'Low'}
-
-📈 **24-HOUR PREDICTIONS**
-
-**Next 4 Hours:**
-• Market Activity: {'Increasing' if 18 <= current_hour <= 22 else 'Decreasing' if 2 <= current_hour <= 10 else 'Stable'}
-• Price Trend: {'Sellers market - prices rising' if current_hour >= 19 else 'Buyers market - prices falling' if current_hour < 12 else 'Neutral'}
-• Best Actions: {'Post high-value items' if 18 <= current_hour <= 23 else 'Shop for deals' if 2 <= current_hour <= 10 else 'Monitor market'}
-
-**Next 12 Hours:**
-• Expected Token Movement: {'+2-5%' if current_day in ['Friday', 'Saturday'] else '-1-3%' if current_day == 'Tuesday' else '±2%'}
-• Auction Volume: {'Increasing significantly' if current_day == 'Tuesday' else 'Peak hours approaching' if current_day in ['Friday', 'Saturday'] else 'Normal fluctuation'}
-
-📊 **WEEKLY TREND FORECAST**
-
-**Best Days to SELL:**
-• Tuesday (Post-reset demand)
-• Friday Evening (Weekend raiders)
-• Saturday (Peak population)
-
-**Best Days to BUY:**
-• Monday (Low population)
-• Wednesday (Mid-week lull)  
-• Sunday Night (Pre-reset dumps)
-
-🎮 **SEASONAL FACTORS**
-• Patch Cycle: {'New patch = High volatility, stock consumables' if current_day == 'Tuesday' else 'Mid-patch = Stable prices'}
-• Events: Check calendar for holiday events
-• Competition: More sellers on weekends
+• Peak Trading: {'Active' if 18 <= current_hour <= 23 else 'Starting' if 16 <= current_hour < 18 else 'Quiet'}
 
 💡 **TRADING RECOMMENDATIONS**
 
-**If Token < {int(token_price // 10000 * 0.9):,}g:**
-• Strong BUY signal
-• Stock up for future flips
-• Convert gold to tokens
+**Immediate Actions:**
+• {'Post high-value items - peak hours' if 18 <= current_hour <= 23 else 'Scout for deals - low competition' if 2 <= current_hour <= 10 else 'Monitor market trends'}
+• {'Focus on consumables' if current_day in ['Monday', 'Tuesday'] else 'Target transmog items' if current_day in ['Friday', 'Saturday'] else 'General trading'}
 
-**If Token > {int(token_price // 10000 * 1.1):,}g:**
-• SELL signal
-• Liquidate token inventory
-• Hold gold positions
+**Token Strategy:**
+• Current Price: {token_price // 10000:,}g
+• Action: {'BUY - Below average' if token_price < 2500000 else 'SELL - Above average' if token_price > 3000000 else 'HOLD - Fair value'}
 
-**Current Action:** {'BUY - Prices are low' if token_price < 2500000 else 'SELL - Prices are high' if token_price > 3000000 else 'HOLD - Wait for better opportunity'}
+📅 **WEEKLY OUTLOOK**
+• Best Selling Days: Tuesday (raid reset), Friday-Saturday (weekend activity)
+• Best Buying Days: Monday, Wednesday-Thursday (lower competition)
+• Avoid Major Trades: Sunday evening (market uncertainty pre-reset)
 
-🔮 **ADVANCED PREDICTIONS**
-1. **Consumables**: {'Prices rising - raid night approaching' if current_day in ['Monday', 'Tuesday'] else 'Stable'}
-2. **Materials**: {'Buy now - crafters restocking' if current_day == 'Tuesday' else 'Normal supply'}
-3. **Gear**: {'High demand' if current_day == 'Tuesday' else 'Low demand - wait to sell'}
-4. **Transmog**: Best sales on weekends
+Note: Historical data improves with usage. The more the market is monitored, the more accurate predictions become."""
 
-⚡ **IMMEDIATE OPPORTUNITIES**
-• Quick flips available: {'Yes - low competition' if current_hour < 10 or current_hour > 23 else 'No - high competition'}
-• Sniping potential: {'High' if 2 <= current_hour <= 8 else 'Low'}
-• Crafting profits: {'Excellent' if current_day in ['Tuesday', 'Wednesday'] else 'Good'}"""
-
+        # Save historical data periodically
+        save_historical_data()
+        
         return result
         
     except Exception as e:
         logger.error(f"Error in trend prediction: {str(e)}")
         return f"Error predicting trends: {str(e)}"
+
+@mcp.tool()
+async def get_historical_data(realm_slug: str = "stormrage", region: str = "us", item_id: int = 0, hours: int = 24) -> str:
+    """
+    Get historical price data for an item.
+    
+    Args:
+        realm_slug: Realm to analyze
+        region: Region code
+        item_id: Item ID to get history for
+        hours: Number of hours of history to retrieve (max 24)
+    
+    Returns:
+        Historical price data and trends
+    """
+    try:
+        if item_id == 0:
+            return "Error: Please provide an item_id"
+        
+        trends = get_historical_trends(region, realm_slug, item_id, min(hours, 24))
+        
+        if "error" in trends:
+            return f"No historical data available for item {item_id} on {realm_slug}-{region}"
+        
+        key = f"{region}_{realm_slug}_{item_id}"
+        data_points = historical_data.get(key, {}).get("data_points", [])
+        
+        # Get recent data points
+        cutoff_time = datetime.now() - timedelta(hours=hours)
+        recent_points = [
+            dp for dp in data_points 
+            if datetime.fromisoformat(dp["timestamp"]) > cutoff_time
+        ]
+        
+        result = f"""Historical Data - Item #{item_id} on {realm_slug.title()} ({region.upper()})
+Time Range: Last {hours} hours
+Data Points: {len(recent_points)}
+
+📊 **PRICE ANALYSIS**
+• Current Price: {int(trends['current_price'] // 10000):,}g
+• Average Price: {int(trends['avg_price'] // 10000):,}g
+• Minimum Price: {int(trends['min_price'] // 10000):,}g
+• Maximum Price: {int(trends['max_price'] // 10000):,}g
+• Price Volatility: {trends['price_volatility']*100:.1f}%
+• Price Trend: {trends['price_trend']*100:+.1f}%
+
+📈 **RECENT PRICE HISTORY**
+"""
+        
+        # Show last 10 data points
+        for dp in recent_points[-10:]:
+            timestamp = datetime.fromisoformat(dp["timestamp"])
+            time_str = timestamp.strftime("%H:%M")
+            price_gold = int(dp["price"] // 10000)
+            result += f"• {time_str}: {price_gold:,}g (qty: {dp['quantity']})\n"
+        
+        # Trading recommendation
+        price_change = trends['price_trend'] * 100
+        if price_change > 5:
+            recommendation = "SELL - Price is trending up"
+        elif price_change < -5:
+            recommendation = "BUY - Price is trending down"
+        else:
+            recommendation = "HOLD - Price is stable"
+        
+        result += f"\n💡 **RECOMMENDATION**: {recommendation}"
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error getting historical data: {str(e)}")
+        return f"Error retrieving historical data: {str(e)}"
 
 @mcp.tool()
 async def debug_api_data(realm_slug: str = "stormrage", region: str = "us") -> str:
@@ -1010,13 +1239,19 @@ def get_analysis_help() -> str:
    • Shows raw API response data
    • Best for: Identifying items from auction data
 
-5. **debug_api_data**
+5. **get_historical_data**
+   • Retrieves historical price data for specific items
+   • Shows price trends over the last 24 hours
+   • Provides buy/sell/hold recommendations
+   • Best for: Analyzing item-specific price movements
+
+6. **debug_api_data**
    • Shows raw API responses from Blizzard
    • Verifies real-time data connectivity
    • Displays auction samples and token prices
    • Best for: Troubleshooting and verification
 
-6. **check_staging_data**
+7. **check_staging_data**
    • Shows cache statistics and data points
    • Displays cache hit rates and memory usage
    • Tracks data freshness and expiration
@@ -1077,8 +1312,8 @@ def main():
         port = int(os.getenv("PORT", "8000"))
         
         logger.info("🚀 WoW Economic Analysis Server with FastMCP 2.0")
-        logger.info("🔧 Tools: Market analysis, crafting profits, predictions, debug, item lookup, staging")
-        logger.info("📊 Registered tools: 7 WoW economic analysis tools")
+        logger.info("🔧 Tools: Market analysis, crafting profits, predictions, historical data, debug, item lookup, staging")
+        logger.info("📊 Registered tools: 8 WoW economic analysis tools")
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
         
@@ -1092,8 +1327,13 @@ def main():
             port=port
         )
         
+    except KeyboardInterrupt:
+        logger.info("⏹️  Shutting down gracefully...")
+        save_historical_data()
+        logger.info("💾 Historical data saved")
     except Exception as e:
         logger.error(f"❌ Error starting server: {e}")
+        save_historical_data()
         sys.exit(1)
 
 if __name__ == "__main__":
