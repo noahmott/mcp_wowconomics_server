@@ -4,6 +4,9 @@
 
 ### Academic Research Tool for Virtual Economy Analysis
 
+[![Deploy](https://img.shields.io/badge/Deploy-Heroku-7056BF.svg?style=for-the-badge&logo=heroku)](https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/)
+[![Status](https://img.shields.io/badge/Status-Active-success.svg?style=for-the-badge)](https://github.com/noahmott/mcp_wowconomics_server)
+
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.116.1-009688.svg?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Pandas](https://img.shields.io/badge/pandas-2.3.0-150458.svg?style=for-the-badge&logo=pandas&logoColor=white)](https://pandas.pydata.org)
@@ -22,6 +25,14 @@
 </div>
 
 ---
+
+## 🆕 What's New (July 2024)
+
+- **Aggregate Market Snapshots**: Now capturing comprehensive market data instead of individual price points
+- **PostgreSQL Storage**: Persistent data storage with 30-day retention
+- **Market Velocity Tracking**: New metrics for turnover rates and estimated sales
+- **Enhanced Security**: Resource limits to prevent DoS and ensure stable operation
+- **11 Analysis Tools**: Added `query_aggregate_market_data` and `check_database_status`
 
 ## 📚 Overview
 
@@ -103,7 +114,7 @@ graph LR
 ## 🛠️ Analysis Tools
 
 <details>
-<summary><b>Click to view all 10 research tools</b></summary>
+<summary><b>Click to view all 11 research tools</b></summary>
 
 | Tool | Research Application | Output Format |
 |------|---------------------|---------------|
@@ -112,10 +123,11 @@ graph LR
 | `predict_market_trends` | Time series forecasting, trend analysis | Predictions with confidence intervals |
 | `get_historical_data` | Data collection for research | CSV-ready time series data |
 | `update_historical_database` | Maintain research dataset | Database update confirmation |
+| `query_aggregate_market_data` | Access aggregate market snapshots | Market volume, depth, velocity metrics |
 | `analyze_with_details` | Deep statistical analysis | Comprehensive research report |
 | `debug_api_data` | Data quality validation | Raw API response analysis |
 | `get_item_info` | Item classification, categorization | Detailed item metadata |
-| `check_staging_data` | Cache performance metrics | System performance statistics |
+| `check_database_status` | Database health and storage metrics | Connection status, record counts |
 | `get_analysis_help` | Documentation for researchers | Tool usage guidelines |
 
 </details>
@@ -129,31 +141,46 @@ graph LR
 - **Cross-Sectional Data** - Item attributes, rarity, level requirements
 - **Network Data** - Server connections, faction markets
 
-### Data Quality
+### Data Quality & Storage
 
 - **Coverage**: 200+ US/EU realms available via API
-- **Active Monitoring**: Currently tracking 3 US realms (Stormrage, Area-52, Tichondrius)
-- **Item Coverage**: Top 100 most-traded items per realm
-- **Frequency**: 5-minute updates when scheduler is active
-- **History**: Rolling 24-hour window (288 data points)
-- **Storage**: In-memory with periodic JSON persistence
+- **Active Monitoring**: Currently tracking 10 US realms with automatic rotation
+- **Item Coverage**: Top 100-200 most-traded items per realm (configurable)
+- **Frequency**: Hourly snapshots via Blizzard API
+- **History**: 30-day aggregate snapshots, 7-day detailed price distributions
+- **Storage**: PostgreSQL with aggregate market snapshots
+- **Data Points**: 2,200+ market snapshots collected daily
+
+### New: Aggregate Market Data (2024)
+
+The system now captures comprehensive market aggregates instead of individual price points:
+
+- **Market Snapshots**: Total quantity, auction count, unique sellers per item
+- **Price Statistics**: Min, max, average, median, standard deviation
+- **Market Concentration**: Top seller percentage, seller distribution
+- **Price Distributions**: Detailed breakdown by price points
+- **Market Velocity**: Turnover rates, listing changes, estimated sales
 
 ### Current Limitations
 
 ⚠️ **Important for Researchers:**
 
-1. **Limited Realm Coverage**: Only 3 realms are actively monitored by default. Other realms require manual updates or custom configuration.
+1. **API Rate Limits**: Blizzard API provides hourly snapshots, limiting real-time analysis
 
-2. **Item Selection Bias**: Only the top 100 most-traded items are tracked, potentially missing low-volume but high-value items.
+2. **Item Selection**: Tracks top 100-200 most-traded items per realm (configurable via `top_items` parameter)
 
-3. **Data Persistence**: Historical data is stored in memory and may be lost during server restarts. For production research, implement PostgreSQL storage.
+3. **Resource Constraints**: Security limits prevent tracking all items across all realms simultaneously
 
-4. **Inconsistent Updates**: Data collection depends on scheduler configuration. Some realms may have gaps in their time series.
+4. **Historical Depth**: 30-day retention for aggregate data, 7-day for detailed distributions
 
-To expand coverage for your research, you can:
-- Call `update_historical_database` with specific realms: `{"realms": "mal-ganis:us,kiljaeden:us"}`
-- Deploy your own instance with custom realm configuration
-- Contact the maintainer for specific realm monitoring requests
+To customize for your research:
+- Call `update_historical_database` with specific parameters:
+  - `realms`: Target specific servers (e.g., `"mal-ganis:us,kiljaeden:us"`)
+  - `top_items`: Adjust item coverage (max 500)
+  - `include_all_items`: Track all items for a realm (resource intensive)
+- Use `query_aggregate_market_data` for different analyses:
+  - `query_type`: "top_items", "market_depth", "price_trends", "market_velocity"
+- Deploy your own instance for unlimited access
 
 ## 🚀 Quick Start for Researchers
 
@@ -211,9 +238,6 @@ pip install -r requirements.txt
 cp .env.example .env
 # Add your Blizzard API credentials to .env
 
-# Initialize database
-python create_staging_tables.py
-
 # Start the server
 python analysis_mcp_server.py
 ```
@@ -263,6 +287,33 @@ analysis = await analyze_with_details(
 # Returns GARCH model parameters and volatility clusters
 print(f"Average volatility: {analysis['avg_volatility']}%")
 print(f"Volatility clusters detected: {analysis['cluster_count']}")
+```
+
+### Market Depth Analysis (New)
+
+```python
+# Query aggregate market data for volume analysis
+market_data = await query_aggregate_market_data(
+    realm_slug="stormrage",
+    region="us",
+    query_type="top_items",
+    limit=20
+)
+
+# Analyze specific item's market depth
+depth_analysis = await query_aggregate_market_data(
+    realm_slug="stormrage",
+    region="us",
+    query_type="market_depth",
+    item_id="168487"  # Zin'anthid
+)
+
+# Track market velocity and turnover
+velocity = await query_aggregate_market_data(
+    query_type="market_velocity",
+    realm_slug="area-52",
+    hours=24
+)
 ```
 
 ## 🔌 MCP Integration for Research Clients
