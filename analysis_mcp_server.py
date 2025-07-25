@@ -795,13 +795,22 @@ Data Points: {len(recent_points)}
         return f"Error retrieving historical data: {str(e)}"
 
 @mcp.tool()
-async def update_historical_database(realms: Optional[str] = None) -> str:
+async def update_historical_database(
+    realms: Optional[str] = None,
+    top_items: int = 100,
+    include_all_items: bool = False,
+    auto_expand: bool = False
+) -> str:
     """
     Update historical database by running market analysis on specified realms.
     
     Args:
         realms: Comma-separated list of realm:region pairs (e.g., "stormrage:us,area-52:us")
+                Special values: "all-us" (all US realms), "popular" (top 10 realms)
                 If not provided, updates default realms.
+        top_items: Number of top traded items to track per realm (default: 100, max: 500)
+        include_all_items: Track all items, not just top traded (warning: resource intensive)
+        auto_expand: Automatically add connected realms
     
     Returns:
         Update status and statistics
@@ -812,20 +821,42 @@ async def update_historical_database(realms: Optional[str] = None) -> str:
         
         # Parse realms or use defaults
         if realms:
-            realm_list = []
-            for realm_spec in realms.split(","):
-                parts = realm_spec.strip().split(":")
-                if len(parts) == 2:
-                    realm_list.append((parts[1], parts[0]))  # (region, realm)
-                else:
-                    realm_list.append(("us", parts[0]))  # Default to US
+            if realms.lower() == "all-us":
+                # Common US realms
+                realm_list = [
+                    ("us", "stormrage"), ("us", "area-52"), ("us", "tichondrius"),
+                    ("us", "mal-ganis"), ("us", "kiljaeden"), ("us", "illidan"),
+                    ("us", "thrall"), ("us", "zul-jin"), ("us", "dalaran"),
+                    ("us", "ragnaros"), ("us", "azralon"), ("us", "nemesis")
+                ]
+            elif realms.lower() == "popular":
+                # Top population realms
+                realm_list = [
+                    ("us", "stormrage"), ("us", "area-52"), ("us", "tichondrius"),
+                    ("us", "mal-ganis"), ("us", "kiljaeden"), ("us", "illidan"),
+                    ("us", "thrall"), ("us", "moon-guard"), ("us", "wyrmrest-accord"),
+                    ("us", "bleeding-hollow")
+                ]
+            else:
+                realm_list = []
+                for realm_spec in realms.split(","):
+                    parts = realm_spec.strip().split(":")
+                    if len(parts) == 2:
+                        realm_list.append((parts[1], parts[0]))  # (region, realm)
+                    else:
+                        realm_list.append(("us", parts[0]))  # Default to US
         else:
-            # Default realms to update
+            # Expanded default realms
             realm_list = [
                 ("us", "stormrage"),
                 ("us", "area-52"),
                 ("us", "tichondrius"),
+                ("us", "mal-ganis"),
+                ("us", "kiljaeden"),
             ]
+        
+        # Limit top_items to prevent resource exhaustion
+        top_items = min(max(top_items, 10), 500)
         
         result = f"""Historical Database Update
 Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -875,11 +906,17 @@ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                             item_prices[item_id].append(price_per_unit)
                             item_quantities[item_id] += quantity
                     
-                    # Store historical data for top traded items
+                    # Store historical data for items
                     items_by_volume = sorted(item_quantities.items(), key=lambda x: x[1], reverse=True)
                     items_updated = 0
                     
-                    for item_id, total_quantity in items_by_volume[:100]:  # Top 100 items
+                    # Determine which items to track
+                    if include_all_items:
+                        items_to_track = item_quantities.items()
+                    else:
+                        items_to_track = items_by_volume[:top_items]
+                    
+                    for item_id, total_quantity in items_to_track:
                         if item_id in item_prices and item_prices[item_id]:
                             avg_price = sum(item_prices[item_id]) / len(item_prices[item_id])
                             store_historical_data(region, realm, item_id, avg_price, total_quantity)
@@ -897,27 +934,44 @@ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         # Save historical data
         save_historical_data()
         
+        # Calculate comprehensive statistics
+        total_data_points = sum(len(data["data_points"]) for data in historical_data.values())
+        unique_items = len(set(key.split('_')[2] for key in historical_data.keys() if '_' in key))
+        realms_with_data = len(set(f"{key.split('_')[0]}_{key.split('_')[1]}" for key in historical_data.keys() if '_' in key))
+        
         # Summary
         result += f"""
 
 📊 **UPDATE SUMMARY**
+• Realms Requested: {len(realm_list)} ({', '.join(f"{r[1]}-{r[0]}" for r in realm_list[:3])}{'...' if len(realm_list) > 3 else ''})
 • Realms Updated: {success_count}/{len(realm_list)}
-• Total Items Tracked: {total_items_tracked}
+• Items Tracked This Update: {total_items_tracked:,}
+• Tracking Mode: {"All Items" if include_all_items else f"Top {top_items} Items/Realm"}
 • Data Saved: {"Yes" if success_count > 0 else "No"}
 • Completed: {datetime.now().strftime('%H:%M:%S')}
 """
         
         if errors:
             result += f"\n⚠️ **ERRORS**\n"
-            for error in errors:
+            for error in errors[:5]:  # Limit error display
                 result += f"• {error}\n"
+            if len(errors) > 5:
+                result += f"• ... and {len(errors) - 5} more errors\n"
         
         # Get current historical data stats
-        total_historical_items = len([k for k in historical_data if k.startswith(f"{region}_")])
         result += f"\n📈 **HISTORICAL DATABASE STATS**\n"
-        result += f"• Total tracked items in memory: {total_historical_items}\n"
-        result += f"• Data retention: 24 hours (288 data points max per item)\n"
-        result += f"• Next update recommended in: 1 hour\n"
+        result += f"• Total Realms with Data: {realms_with_data}\n"
+        result += f"• Unique Items Tracked: {unique_items:,}\n"
+        result += f"• Total Data Points: {total_data_points:,}\n"
+        result += f"• Data Retention: 24 hours (288 points max per item)\n"
+        result += f"• Memory Usage: ~{total_data_points * 50 / 1_000_000:.1f} MB\n"
+        
+        result += f"\n💡 **USAGE TIPS**\n"
+        result += f"• For specific realms: realms='mal-ganis:us,kiljaeden:us'\n"
+        result += f"• For popular realms: realms='popular'\n"
+        result += f"• For all US realms: realms='all-us'\n"
+        result += f"• For more items: top_items=200\n"
+        result += f"• For all items: include_all_items=true (slow!)\n"
         
         return result
         

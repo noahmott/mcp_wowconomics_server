@@ -131,10 +131,29 @@ graph LR
 
 ### Data Quality
 
-- **Coverage**: 200+ US/EU realms, 100,000+ tradeable items
-- **Frequency**: 5-minute updates during peak hours
-- **History**: Rolling 30-day window with archival options
-- **Reliability**: 99.9% uptime with redundant caching
+- **Coverage**: 200+ US/EU realms available via API
+- **Active Monitoring**: Currently tracking 3 US realms (Stormrage, Area-52, Tichondrius)
+- **Item Coverage**: Top 100 most-traded items per realm
+- **Frequency**: 5-minute updates when scheduler is active
+- **History**: Rolling 24-hour window (288 data points)
+- **Storage**: In-memory with periodic JSON persistence
+
+### Current Limitations
+
+⚠️ **Important for Researchers:**
+
+1. **Limited Realm Coverage**: Only 3 realms are actively monitored by default. Other realms require manual updates or custom configuration.
+
+2. **Item Selection Bias**: Only the top 100 most-traded items are tracked, potentially missing low-volume but high-value items.
+
+3. **Data Persistence**: Historical data is stored in memory and may be lost during server restarts. For production research, implement PostgreSQL storage.
+
+4. **Inconsistent Updates**: Data collection depends on scheduler configuration. Some realms may have gaps in their time series.
+
+To expand coverage for your research, you can:
+- Call `update_historical_database` with specific realms: `{"realms": "mal-ganis:us,kiljaeden:us"}`
+- Deploy your own instance with custom realm configuration
+- Contact the maintainer for specific realm monitoring requests
 
 ## 🚀 Quick Start for Researchers
 

@@ -76,7 +76,10 @@ async def update_historical_data():
                     "method": "tools/call",
                     "params": {
                         "name": "update_historical_database",
-                        "arguments": {}  # Use default realms
+                        "arguments": {
+                            "realms": "popular",  # Update popular realms
+                            "top_items": 200     # Track more items
+                        }
                     },
                     "id": 2
                 },
