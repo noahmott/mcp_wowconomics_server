@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from fastmcp import FastMCP
-import aioredis
+import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 

@@ -8,7 +8,7 @@ import hashlib
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Union
-import aioredis
+import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc, func
 
