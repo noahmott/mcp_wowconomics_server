@@ -131,9 +131,16 @@ class BlizzardAPIClient:
             "Accept": "application/json"
         }
         
-        # Default parameters
+        # Default parameters - use different namespace based on endpoint type
+        if "/profile/" in endpoint:
+            namespace = f"profile-{self.region}"
+        elif "/data/" in endpoint:
+            namespace = f"dynamic-{self.region}"
+        else:
+            namespace = f"profile-{self.region}"  # fallback
+            
         default_params = {
-            "namespace": f"profile-{self.region}",
+            "namespace": namespace,
             "locale": self.locale
         }
         
@@ -169,7 +176,7 @@ class BlizzardAPIClient:
         except aiohttp.ClientError as e:
             raise BlizzardAPIError(f"Network error: {str(e)}")
     
-    # Guild API methods
+    # Guild API methods - using proper endpoints and namespaces
     async def get_guild_info(self, realm: str, guild_name: str) -> Dict[str, Any]:
         """Get guild information"""
         # URL encode the guild name to handle special characters
@@ -242,14 +249,14 @@ class BlizzardAPIClient:
             logger.warning(f"Failed to get guild achievements: {e.message}")
             guild_achievements = {}
         
-        # Process member data - with better error handling
+        # Process member data - with better error handling and equipment fetching
         members_data = []
         errors_count = 0
-        max_errors = 5  # Stop after 5 errors
+        max_errors = 10  # Allow more errors before stopping
         
         if "members" in guild_roster:
-            # Limit to first 10 members for now to avoid timeout
-            members = guild_roster["members"][:10]
+            # Process more members but still limit to avoid timeout
+            members = guild_roster["members"][:20]  # Increased from 10 to 20
             logger.info(f"Processing {len(members)} guild members")
             
             for member in members:
@@ -273,7 +280,16 @@ class BlizzardAPIClient:
                         "playable_race": character.get("playable_race", {})
                     }
                     
-                    # Skip profile lookup for now - just use roster data
+                    # Try to get equipment data for better analysis
+                    try:
+                        equipment_data = await self.get_character_equipment(character_realm, character_name)
+                        basic_info["equipment_summary"] = self._summarize_equipment(equipment_data)
+                        logger.debug(f"Got equipment for {character_name}: {basic_info['equipment_summary']['average_item_level']}")
+                    except BlizzardAPIError as e:
+                        logger.debug(f"Failed to get equipment for {character_name}: {e.message}")
+                        basic_info["equipment_summary"] = {"average_item_level": 0, "total_items": 0}
+                        errors_count += 1
+                    
                     members_data.append(basic_info)
         
         return {
