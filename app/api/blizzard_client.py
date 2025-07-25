@@ -210,6 +210,25 @@ class BlizzardAPIClient:
                     logger.info(f"Resource not found at {url}: {text}")
                     raise BlizzardAPIError("Resource not found", status_code=404)
                 
+                if response.status == 403:
+                    # Try refreshing token once if we get 403
+                    logger.warning("Got 403 Forbidden, trying to refresh token")
+                    self.access_token = None  # Force token refresh
+                    self.token_expires_at = None
+                    access_token = await self.get_access_token()
+                    headers["Authorization"] = f"Bearer {access_token}"
+                    
+                    # Retry request with new token
+                    async with self.session.get(url, headers=headers, params=default_params) as retry_response:
+                        if retry_response.status != 200:
+                            text = await retry_response.text()
+                            logger.error(f"API request to {url} failed after token refresh: {retry_response.status} - {text}")
+                            raise BlizzardAPIError(
+                                f"API request failed: {retry_response.status} - {text}",
+                                status_code=retry_response.status
+                            )
+                        return await retry_response.json()
+                
                 if response.status != 200:
                     text = await response.text()
                     logger.error(f"API request to {url} failed: {response.status} - {text}")
