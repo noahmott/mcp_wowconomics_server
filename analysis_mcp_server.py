@@ -225,35 +225,37 @@ async def analyze_crafting_profits(realm_slug: str = "stormrage", region: str = 
         Crafting profit analysis
     """
     try:
-        # Dragonflight crafting data with valid item IDs
+        # The War Within crafting data with valid item IDs (July 2025 current expansion)
         # Note: These are example recipes - actual game recipes may vary
         common_crafts = {
             "Alchemy": {
-                # Potion of Frozen Fatality (confirmed item ID: 191351)
-                "Potion of Frozen Fatality": {
-                    "mats": [191462, 191470],  # Hochenblume, Writhebark
-                    "product": 191351
+                # Flask of Alchemical Chaos (current raid flask)
+                "Flask of Alchemical Chaos": {
+                    "mats": [210796, 210799, 210800],  # Mycobloom, Luredrop, Orbinid
+                    "product": 212283
                 },
-                # Refreshing Healing Potion (common Dragonflight potion)
-                "Refreshing Healing Potion": {
-                    "mats": [191462, 191467],  # Hochenblume, Bubble Poppy
-                    "product": 191380
+                # Tempered Potion (common battle potion)
+                "Tempered Potion": {
+                    "mats": [210796, 210799],  # Mycobloom, Luredrop
+                    "product": 212265
                 },
-                # Elemental Potion of Ultimate Power (high-end potion)
-                "Elemental Potion of Ultimate Power": {
-                    "mats": [191462, 191470, 191471],  # Hochenblume, Writhebark, Saxifrage
-                    "product": 191382
+                # Algari Healing Potion (basic healing potion)
+                "Algari Healing Potion": {
+                    "mats": [210796, 210797],  # Mycobloom, Arathor's Spear
+                    "product": 211880
                 }
             },
             "Blacksmithing": {
-                # Using placeholder IDs - these would need real Dragonflight smithing items
-                "Primal Molten Shortblade": {"mats": [190395, 190396], "product": 190500},
-                "Obsidian Seared Claymore": {"mats": [190395, 190396, 190397], "product": 190501}
+                # Core Alloy Gauntlets (crafted armor)
+                "Core Alloy Gauntlets": {"mats": [210936, 210937], "product": 222443},
+                # Charged Claymore (crafted weapon)
+                "Charged Claymore": {"mats": [210936, 210938, 210939], "product": 222486}
             },
             "Enchanting": {
-                # Using placeholder IDs - these would need real Dragonflight enchanting items
-                "Enchant Chest - Waking Stats": {"mats": [194123, 194124], "product": 199999},
-                "Enchant Weapon - Burning Writ": {"mats": [194123, 194124, 194125], "product": 200000}
+                # Enchant Chest - Crystalline Radiance
+                "Enchant Chest - Crystalline Radiance": {"mats": [210932, 210933], "product": 223684},
+                # Enchant Weapon - Authority of Radiant Power
+                "Enchant Weapon - Authority of Radiant Power": {"mats": [210932, 210933, 210934], "product": 223665}
             }
         }
         
