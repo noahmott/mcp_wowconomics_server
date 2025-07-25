@@ -231,7 +231,7 @@ async def analyze_crafting_profits(realm_slug: str = "stormrage", region: str = 
             "Alchemy": {
                 # Flask of Alchemical Chaos (current raid flask)
                 "Flask of Alchemical Chaos": {
-                    "mats": [210796, 210799, 210800],  # Mycobloom, Luredrop, Orbinid
+                    "mats": [210796, 210799, 210802],  # Mycobloom, Luredrop, Orbinid
                     "product": 212283
                 },
                 # Tempered Potion (common battle potion)
@@ -241,7 +241,7 @@ async def analyze_crafting_profits(realm_slug: str = "stormrage", region: str = 
                 },
                 # Algari Healing Potion (basic healing potion)
                 "Algari Healing Potion": {
-                    "mats": [210796, 210797],  # Mycobloom, Arathor's Spear
+                    "mats": [210796, 210810],  # Mycobloom, Arathor's Spear
                     "product": 211880
                 }
             },
