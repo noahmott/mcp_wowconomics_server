@@ -1,6 +1,6 @@
 <div align="center">
   
-# 🏰 WoW Economic Analysis MCP Server
+# ⚔️ WoW Economic Analysis MCP Server 🛡️
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.116.1-009688.svg?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -8,9 +8,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![Heroku](https://img.shields.io/badge/Deploy-Heroku-430098.svg?style=for-the-badge&logo=heroku&logoColor=white)](https://heroku.com)
 
-### 🎮 AI-powered WoW auction house analyzer that finds gold-making opportunities
+### 🎮 AI-powered WoW auction house analyzer that finds gold-making opportunities 💰
 
-*Transform market data into gold with real-time analysis, crafting calculations, and trend predictions*
+*🔮 Transform market data into gold with real-time analysis, crafting calculations, and trend predictions*
+
+[![WoW](https://img.shields.io/badge/World%20of%20Warcraft-Compatible-148EFF.svg?style=flat-square)](https://worldofwarcraft.com)
+[![Battle.net](https://img.shields.io/badge/Battle.net-API-00AEFF.svg?style=flat-square)](https://develop.battle.net)
 
 [Features](#-features) • [Quick Start](#-quick-start) • [Tools](#-available-tools) • [Examples](#-usage-examples) • [Deploy](#-deployment)
 
@@ -19,6 +22,12 @@
 ---
 
 ## 🌟 Features
+
+<div align="center">
+  
+**🏆 For the Horde & Alliance! Turn auction house data into pure profit 🏆**
+
+</div>
 
 <table>
 <tr>
@@ -67,10 +76,10 @@
 
 ### Prerequisites
 
-- Python 3.11+
-- Blizzard API Credentials ([Get them here](https://develop.battle.net/access/))
-- Redis (optional, for caching)
-- PostgreSQL (optional, for persistence)
+- 🐍 Python 3.11+
+- 🔑 Blizzard API Credentials ([Get them here](https://develop.battle.net/access/))
+- 🚀 Redis (optional, for caching)
+- 🗄️ PostgreSQL (optional, for persistence)
 
 ### Installation
 
@@ -93,7 +102,7 @@ cp .env.example .env
 python analysis_mcp_server.py
 ```
 
-## 🛠️ Available Tools
+## 🛠️ Available Tools ⚒️
 
 <details>
 <summary><b>Click to expand all 10 MCP tools</b></summary>
@@ -247,6 +256,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 <div align="center">
 
 Made with ❤️ for the WoW community
+
+⚔️ **For Azeroth!** ⚔️
 
 [Report Bug](https://github.com/noahmott/mcp_wowconomics_server/issues) • [Request Feature](https://github.com/noahmott/mcp_wowconomics_server/issues)
 
