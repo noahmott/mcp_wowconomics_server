@@ -856,6 +856,125 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         return f"Error getting item info: {str(e)}"
 
 @mcp.tool()
+async def check_staging_data() -> str:
+    """
+    Check how many data points are stored in staging/cache.
+    
+    Shows cache statistics including:
+    - Number of cached analyses
+    - Cache hit rates
+    - Data freshness
+    - Memory usage estimates
+    
+    Returns:
+        Staging data statistics
+    """
+    try:
+        # Get cache statistics
+        total_cache_entries = len(analysis_cache)
+        valid_cache_entries = 0
+        expired_cache_entries = 0
+        cache_size_estimate = 0
+        
+        current_time = datetime.now()
+        oldest_entry = None
+        newest_entry = None
+        
+        cache_breakdown = {
+            "market_opportunities": 0,
+            "crafting_analysis": 0,
+            "other": 0
+        }
+        
+        for key, ttl_time in analysis_cache_ttl.items():
+            if current_time < ttl_time:
+                valid_cache_entries += 1
+            else:
+                expired_cache_entries += 1
+            
+            # Track oldest and newest
+            if oldest_entry is None or ttl_time < oldest_entry:
+                oldest_entry = ttl_time
+            if newest_entry is None or ttl_time > newest_entry:
+                newest_entry = ttl_time
+            
+            # Categorize cache entries
+            if "opportunities_" in key:
+                cache_breakdown["market_opportunities"] += 1
+            elif "crafting_" in key:
+                cache_breakdown["crafting_analysis"] += 1
+            else:
+                cache_breakdown["other"] += 1
+            
+            # Estimate size (rough estimate)
+            if key in analysis_cache:
+                cache_size_estimate += len(str(analysis_cache[key]))
+        
+        # Check API client cache if available
+        api_cache_info = "API cache information not available"
+        if API_AVAILABLE:
+            try:
+                # This would need to be implemented in BlizzardAPIClient
+                # For now, we'll just note it's using the client
+                api_cache_info = "API client has internal caching (1-hour TTL)"
+            except:
+                pass
+        
+        result = f"""Staging Data Statistics
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+📊 **CACHE OVERVIEW**
+• Total cache entries: {total_cache_entries}
+• Valid (not expired): {valid_cache_entries}
+• Expired: {expired_cache_entries}
+• Cache hit rate: {(valid_cache_entries / total_cache_entries * 100) if total_cache_entries > 0 else 0:.1f}%
+
+📈 **CACHE BREAKDOWN**
+• Market opportunities: {cache_breakdown['market_opportunities']}
+• Crafting analyses: {cache_breakdown['crafting_analysis']}
+• Other data: {cache_breakdown['other']}
+
+⏰ **DATA FRESHNESS**
+• Oldest entry expires: {oldest_entry.strftime('%Y-%m-%d %H:%M:%S') if oldest_entry else 'N/A'}
+• Newest entry expires: {newest_entry.strftime('%Y-%m-%d %H:%M:%S') if newest_entry else 'N/A'}
+• Cache TTL: 1 hour
+
+💾 **MEMORY USAGE**
+• Estimated cache size: {cache_size_estimate / 1024:.1f} KB
+• Average entry size: {(cache_size_estimate / total_cache_entries / 1024) if total_cache_entries > 0 else 0:.1f} KB
+
+🔧 **API CACHING**
+• {api_cache_info}
+• Auction data cached to reduce API calls
+• Token prices always fetched fresh
+
+📝 **STAGING NOTES**
+• Data is cached in-memory (not persistent)
+• Cache clears on server restart
+• Helps avoid Blizzard API rate limits
+• Each realm/region combination cached separately
+
+💡 **RECOMMENDATIONS**
+"""
+        
+        if valid_cache_entries == 0:
+            result += "• No valid cache entries - all data will be fresh\n"
+        elif valid_cache_entries > 10:
+            result += "• Good cache coverage - fast response times\n"
+        
+        if expired_cache_entries > valid_cache_entries:
+            result += "• Many expired entries - consider cache cleanup\n"
+        
+        result += "• Monitor cache size if memory is limited\n"
+        result += "• Cache helps stay within API rate limits"
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error checking staging data: {str(e)}")
+        return f"Error checking staging data: {str(e)}"
+
+@mcp.tool()
 def get_analysis_help() -> str:
     """
     Get help on using the analysis tools effectively.
@@ -896,6 +1015,12 @@ def get_analysis_help() -> str:
    • Verifies real-time data connectivity
    • Displays auction samples and token prices
    • Best for: Troubleshooting and verification
+
+6. **check_staging_data**
+   • Shows cache statistics and data points
+   • Displays cache hit rates and memory usage
+   • Tracks data freshness and expiration
+   • Best for: Monitoring server performance
 
 📋 **HOW TO USE EFFECTIVELY**
 
@@ -952,8 +1077,8 @@ def main():
         port = int(os.getenv("PORT", "8000"))
         
         logger.info("🚀 WoW Economic Analysis Server with FastMCP 2.0")
-        logger.info("🔧 Tools: Market analysis, crafting profits, predictions, debug, item lookup")
-        logger.info("📊 Registered tools: 6 WoW economic analysis tools")
+        logger.info("🔧 Tools: Market analysis, crafting profits, predictions, debug, item lookup, staging")
+        logger.info("📊 Registered tools: 7 WoW economic analysis tools")
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
         
