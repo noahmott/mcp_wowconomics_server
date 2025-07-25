@@ -758,8 +758,8 @@ def main():
         else:
             logger.warning("⚠️ No Blizzard API credentials found")
         
-        # Run server
-        mcp.run(transport="http", host="0.0.0.0", port=port)
+        # Run server with streamable-http transport for proper session support
+        mcp.run(transport="streamable-http", host="0.0.0.0", port=port)
         
     except Exception as e:
         logger.error(f"❌ Error starting server: {e}")
