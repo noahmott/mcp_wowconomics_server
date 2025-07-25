@@ -790,6 +790,137 @@ Data Points: {len(recent_points)}
         return f"Error retrieving historical data: {str(e)}"
 
 @mcp.tool()
+async def update_historical_database(realms: Optional[str] = None) -> str:
+    """
+    Update historical database by running market analysis on specified realms.
+    
+    Args:
+        realms: Comma-separated list of realm:region pairs (e.g., "stormrage:us,area-52:us")
+                If not provided, updates default realms.
+    
+    Returns:
+        Update status and statistics
+    """
+    try:
+        if not API_AVAILABLE:
+            return "Error: Blizzard API not available"
+        
+        # Parse realms or use defaults
+        if realms:
+            realm_list = []
+            for realm_spec in realms.split(","):
+                parts = realm_spec.strip().split(":")
+                if len(parts) == 2:
+                    realm_list.append((parts[1], parts[0]))  # (region, realm)
+                else:
+                    realm_list.append(("us", parts[0]))  # Default to US
+        else:
+            # Default realms to update
+            realm_list = [
+                ("us", "stormrage"),
+                ("us", "area-52"),
+                ("us", "tichondrius"),
+            ]
+        
+        result = f"""Historical Database Update
+Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+📊 **UPDATING REALMS**
+"""
+        
+        success_count = 0
+        total_items_tracked = 0
+        errors = []
+        
+        async with BlizzardAPIClient() as client:
+            for region, realm in realm_list:
+                result += f"\n• {realm.title()} ({region.upper()}): "
+                
+                try:
+                    # Get realm info
+                    realm_endpoint = f"/data/wow/realm/{realm}"
+                    realm_data = await client.make_request(
+                        realm_endpoint, 
+                        {"namespace": f"dynamic-{region}", "locale": "en_US"}
+                    )
+                    
+                    # Get auction data
+                    connected_realm_href = realm_data.get("connected_realm", {}).get("href", "")
+                    connected_realm_id = connected_realm_href.split("/")[-1].split("?")[0]
+                    
+                    auction_endpoint = f"/data/wow/connected-realm/{connected_realm_id}/auctions"
+                    auction_data = await client.make_request(
+                        auction_endpoint,
+                        {"namespace": f"dynamic-{region}", "locale": "en_US"}
+                    )
+                    
+                    auctions = auction_data.get("auctions", [])
+                    
+                    # Analyze and store historical data
+                    item_prices = defaultdict(list)
+                    item_quantities = defaultdict(int)
+                    
+                    for auction in auctions:
+                        item_id = auction.get('item', {}).get('id', 0)
+                        buyout = auction.get('buyout', 0)
+                        quantity = auction.get('quantity', 1)
+                        
+                        if buyout > 0 and quantity > 0:
+                            price_per_unit = buyout / quantity
+                            item_prices[item_id].append(price_per_unit)
+                            item_quantities[item_id] += quantity
+                    
+                    # Store historical data for top traded items
+                    items_by_volume = sorted(item_quantities.items(), key=lambda x: x[1], reverse=True)
+                    items_updated = 0
+                    
+                    for item_id, total_quantity in items_by_volume[:100]:  # Top 100 items
+                        if item_id in item_prices and item_prices[item_id]:
+                            avg_price = sum(item_prices[item_id]) / len(item_prices[item_id])
+                            store_historical_data(region, realm, item_id, avg_price, total_quantity)
+                            items_updated += 1
+                    
+                    result += f"✓ Updated {items_updated} items"
+                    success_count += 1
+                    total_items_tracked += items_updated
+                    
+                except Exception as e:
+                    error_msg = str(e)[:50]
+                    result += f"✗ Error: {error_msg}"
+                    errors.append(f"{realm}: {error_msg}")
+        
+        # Save historical data
+        save_historical_data()
+        
+        # Summary
+        result += f"""
+
+📊 **UPDATE SUMMARY**
+• Realms Updated: {success_count}/{len(realm_list)}
+• Total Items Tracked: {total_items_tracked}
+• Data Saved: {"Yes" if success_count > 0 else "No"}
+• Completed: {datetime.now().strftime('%H:%M:%S')}
+"""
+        
+        if errors:
+            result += f"\n⚠️ **ERRORS**\n"
+            for error in errors:
+                result += f"• {error}\n"
+        
+        # Get current historical data stats
+        total_historical_items = len([k for k in historical_data if k.startswith(f"{region}_")])
+        result += f"\n📈 **HISTORICAL DATABASE STATS**\n"
+        result += f"• Total tracked items in memory: {total_historical_items}\n"
+        result += f"• Data retention: 24 hours (288 data points max per item)\n"
+        result += f"• Next update recommended in: 1 hour\n"
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error updating historical database: {str(e)}")
+        return f"Error updating historical database: {str(e)}"
+
+@mcp.tool()
 async def debug_api_data(realm_slug: str = "stormrage", region: str = "us") -> str:
     """
     Get raw API data for debugging purposes.
@@ -1257,6 +1388,12 @@ def get_analysis_help() -> str:
    • Tracks data freshness and expiration
    • Best for: Monitoring server performance
 
+8. **update_historical_database**
+   • Updates historical price data for multiple realms
+   • Tracks top 100 items by volume on each realm
+   • Can specify custom realms or use defaults
+   • Best for: Scheduled data collection
+
 📋 **HOW TO USE EFFECTIVELY**
 
 **Daily Routine:**
@@ -1313,7 +1450,7 @@ def main():
         
         logger.info("🚀 WoW Economic Analysis Server with FastMCP 2.0")
         logger.info("🔧 Tools: Market analysis, crafting profits, predictions, historical data, debug, item lookup, staging")
-        logger.info("📊 Registered tools: 8 WoW economic analysis tools")
+        logger.info("📊 Registered tools: 9 WoW economic analysis tools")
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
         
