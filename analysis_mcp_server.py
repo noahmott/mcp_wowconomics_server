@@ -106,7 +106,7 @@ async def analyze_market_opportunities(realm_slug: str = "stormrage", region: st
                 buyout = auction.get('buyout', 0)
                 quantity = auction.get('quantity', 1)
                 
-                if buyout > 0:
+                if buyout > 0 and quantity > 0:
                     price_per_unit = buyout / quantity
                     item_prices[item_id].append(price_per_unit)
                     item_quantities[item_id] += quantity
@@ -270,7 +270,7 @@ async def analyze_crafting_profits(realm_slug: str = "stormrage", region: str = 
                 buyout = auction.get('buyout', 0)
                 quantity = auction.get('quantity', 1)
                 
-                if buyout > 0:
+                if buyout > 0 and quantity > 0:
                     price_per_unit = buyout / quantity
                     item_prices[item_id].append(price_per_unit)
             
