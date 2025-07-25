@@ -737,6 +737,151 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         return f"Error predicting trends: {str(e)}"
 
 @mcp.tool()
+async def debug_api_data(realm_slug: str = "stormrage", region: str = "us") -> str:
+    """
+    Get raw API data for debugging purposes.
+    
+    Shows actual API responses to verify data is coming from Blizzard.
+    
+    Args:
+        realm_slug: Realm to check
+        region: Region code
+    
+    Returns:
+        Raw API data and sample auction listings
+    """
+    try:
+        if not API_AVAILABLE:
+            return "Error: Blizzard API not available"
+        
+        debug_info = {
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "realm": realm_slug,
+            "region": region,
+            "api_data": {}
+        }
+        
+        async with BlizzardAPIClient() as client:
+            # Get realm info
+            realm_endpoint = f"/data/wow/realm/{realm_slug}"
+            realm_data = await client.make_request(
+                realm_endpoint, 
+                {"namespace": f"dynamic-{region}", "locale": "en_US"}
+            )
+            
+            debug_info["api_data"]["realm_info"] = {
+                "name": realm_data.get("name"),
+                "id": realm_data.get("id"),
+                "connected_realm_id": realm_data.get("connected_realm", {}).get("id")
+            }
+            
+            # Get auction data
+            connected_realm_href = realm_data.get("connected_realm", {}).get("href", "")
+            connected_realm_id = connected_realm_href.split("/")[-1].split("?")[0]
+            
+            auction_endpoint = f"/data/wow/connected-realm/{connected_realm_id}/auctions"
+            auction_data = await client.make_request(
+                auction_endpoint,
+                {"namespace": f"dynamic-{region}", "locale": "en_US"}
+            )
+            
+            auctions = auction_data.get("auctions", [])
+            
+            # Get token price
+            token_endpoint = "/data/wow/token/index"
+            token_data = await client.make_request(
+                token_endpoint,
+                {"namespace": f"dynamic-{region}", "locale": "en_US"}
+            )
+            
+            debug_info["api_data"]["token"] = {
+                "price_copper": token_data.get("price", 0),
+                "price_gold": token_data.get("price", 0) // 10000,
+                "last_updated": token_data.get("last_updated_timestamp", 0)
+            }
+            
+            debug_info["api_data"]["auctions"] = {
+                "total_count": len(auctions),
+                "sample_size": min(10, len(auctions)),
+                "first_10_auctions": []
+            }
+            
+            # Sample first 10 auctions with details
+            for i, auction in enumerate(auctions[:10]):
+                debug_info["api_data"]["auctions"]["first_10_auctions"].append({
+                    "auction_id": auction.get("id"),
+                    "item_id": auction.get("item", {}).get("id"),
+                    "quantity": auction.get("quantity"),
+                    "unit_price": auction.get("unit_price", 0) // 10000 if auction.get("unit_price") else None,
+                    "buyout": auction.get("buyout", 0) // 10000 if auction.get("buyout") else None,
+                    "time_left": auction.get("time_left")
+                })
+            
+            # Count unique items
+            unique_items = set()
+            for auction in auctions:
+                item_id = auction.get('item', {}).get('id', 0)
+                if item_id:
+                    unique_items.add(item_id)
+            
+            debug_info["api_data"]["statistics"] = {
+                "unique_items": len(unique_items),
+                "average_auctions_per_item": len(auctions) / len(unique_items) if unique_items else 0,
+                "sample_item_ids": list(unique_items)[:20]
+            }
+            
+            result = f"""Debug API Data - {realm_data.get('name', realm_slug.title())} ({region.upper()})
+Generated: {debug_info['timestamp']}
+
+🔍 **RAW API VERIFICATION**
+
+**Realm Data:**
+• Name: {debug_info['api_data']['realm_info']['name']}
+• Realm ID: {debug_info['api_data']['realm_info']['id']}
+• Connected Realm ID: {debug_info['api_data']['realm_info']['connected_realm_id']}
+
+**Token Price (LIVE):**
+• Price: {debug_info['api_data']['token']['price_gold']:,}g
+• Raw Price: {debug_info['api_data']['token']['price_copper']:,} copper
+• Last Updated: {debug_info['api_data']['token']['last_updated']}
+
+**Auction House Data:**
+• Total Auctions: {debug_info['api_data']['auctions']['total_count']:,}
+• Unique Items: {debug_info['api_data']['statistics']['unique_items']:,}
+• Avg Listings per Item: {debug_info['api_data']['statistics']['average_auctions_per_item']:.1f}
+
+**Sample Auctions (First 10):**
+"""
+            
+            for i, auction in enumerate(debug_info['api_data']['auctions']['first_10_auctions'], 1):
+                result += f"""
+{i}. Auction #{auction['auction_id']}
+   • Item ID: {auction['item_id']}
+   • Quantity: {auction['quantity']}
+   • Buyout: {auction['buyout']:,}g
+   • Time Left: {auction['time_left']}
+"""
+
+            result += f"""
+
+**Sample Item IDs Being Traded:**
+{', '.join(str(id) for id in debug_info['api_data']['statistics']['sample_item_ids'])}
+
+**API Status:**
+✅ Blizzard API Connected
+✅ Real-time data retrieved
+✅ Token price: {debug_info['api_data']['token']['price_gold']:,}g
+✅ Auction count: {debug_info['api_data']['auctions']['total_count']:,}
+
+This data comes directly from Blizzard's API endpoints."""
+
+            return result
+            
+    except Exception as e:
+        logger.error(f"Error in debug API data: {str(e)}")
+        return f"Error getting debug data: {str(e)}"
+
+@mcp.tool()
 def get_analysis_help() -> str:
     """
     Get help on using the analysis tools effectively.
@@ -826,8 +971,8 @@ def main():
         port = int(os.getenv("PORT", "8000"))
         
         logger.info("🚀 WoW Economic Analysis Server with FastMCP 2.0")
-        logger.info("🔧 Tools: Market analysis, crafting profits, arbitrage, predictions")
-        logger.info("📊 Registered tools: 5 WoW economic analysis tools")
+        logger.info("🔧 Tools: Market analysis, crafting profits, arbitrage, predictions, debug")
+        logger.info("📊 Registered tools: 6 WoW economic analysis tools")
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
         
