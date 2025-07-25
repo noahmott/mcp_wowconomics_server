@@ -2119,7 +2119,7 @@ async def query_aggregate_market_data(
     region: str = "us",
     query_type: str = "top_items",
     hours: int = 24,
-    item_id: Optional[int] = None,
+    item_id: Optional[str] = None,  # Changed to str to handle input
     limit: int = 50
 ) -> str:
     """
@@ -2140,6 +2140,14 @@ async def query_aggregate_market_data(
     try:
         if not DB_AVAILABLE or not AsyncSessionLocal or not AuctionAggregatorService:
             return "❌ Aggregate market data not available. Database connection required."
+        
+        # Convert item_id from string to int if provided
+        item_id_int = None
+        if item_id:
+            try:
+                item_id_int = int(item_id)
+            except ValueError:
+                return f"❌ Invalid item_id: '{item_id}' must be a number."
         
         async with AsyncSessionLocal() as db:
             result = f"""Aggregate Market Data Query
@@ -2169,16 +2177,16 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                     result += f"   • Snapshots: {item['snapshots_count']}\n"
                     result += f"   • Trend: {item['quantity_trend']*100:+.1f}%\n\n"
                 
-            elif query_type == "market_depth" and item_id:
+            elif query_type == "market_depth" and item_id_int:
                 # Get price distribution for an item
                 depth_data = await AuctionAggregatorService.get_market_depth(
-                    db, region, realm_slug, item_id
+                    db, region, realm_slug, item_id_int
                 )
                 
                 if not depth_data:
-                    return result + f"No market depth data for item #{item_id}."
+                    return result + f"No market depth data for item #{item_id_int}."
                 
-                result += f"📊 **MARKET DEPTH - Item #{item_id}**\n\n"
+                result += f"📊 **MARKET DEPTH - Item #{item_id_int}**\n\n"
                 result += "Price Point | Quantity | Sellers | Market Share | Cumulative\n"
                 result += "-" * 60 + "\n"
                 
@@ -2189,16 +2197,16 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                     result += f"{level['market_share']:>11.1f}% | "
                     result += f"{level['cumulative_quantity']:>10}\n"
                 
-            elif query_type == "price_trends" and item_id:
+            elif query_type == "price_trends" and item_id_int:
                 # Get historical price trends from market history
                 trends = await MarketHistoryService.get_price_trends(
-                    db, region, realm_slug, item_id, hours
+                    db, region, realm_slug, item_id_int, hours
                 )
                 
                 if not trends:
-                    return result + f"No price trend data for item #{item_id}."
+                    return result + f"No price trend data for item #{item_id_int}."
                 
-                result += f"📈 **PRICE TRENDS - Item #{item_id}** (Last {hours}h)\n\n"
+                result += f"📈 **PRICE TRENDS - Item #{item_id_int}** (Last {hours}h)\n\n"
                 result += f"• Average Price: {int(trends['avg_price'] // 10000):,}g\n"
                 result += f"• Price Range: {int(trends['min_price'] // 10000):,}g - {int(trends['max_price'] // 10000):,}g\n"
                 result += f"• Volatility: {trends['price_volatility']*100:.1f}%\n"
