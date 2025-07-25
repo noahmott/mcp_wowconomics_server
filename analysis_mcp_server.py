@@ -775,6 +775,9 @@ async def debug_api_data(realm_slug: str = "stormrage", region: str = "us") -> s
                 "connected_realm_id": realm_data.get("connected_realm", {}).get("id")
             }
             
+            # Store raw realm response
+            debug_info["raw_realm_response"] = realm_data
+            
             # Get auction data
             connected_realm_href = realm_data.get("connected_realm", {}).get("href", "")
             connected_realm_id = connected_realm_href.split("/")[-1].split("?")[0]
@@ -800,10 +803,21 @@ async def debug_api_data(realm_slug: str = "stormrage", region: str = "us") -> s
                 "last_updated": token_data.get("last_updated_timestamp", 0)
             }
             
+            # Store raw token response
+            debug_info["raw_token_response"] = token_data
+            
             debug_info["api_data"]["auctions"] = {
                 "total_count": len(auctions),
                 "sample_size": min(10, len(auctions)),
                 "first_10_auctions": []
+            }
+            
+            # Store raw auction response sample
+            debug_info["raw_auction_response_sample"] = {
+                "_links": auction_data.get("_links"),
+                "connected_realm": auction_data.get("connected_realm"),
+                "commodities": auction_data.get("commodities"),
+                "first_3_auctions_raw": auctions[:3] if auctions else []
             }
             
             # Sample first 10 auctions with details
@@ -873,7 +887,18 @@ Generated: {debug_info['timestamp']}
 ✅ Token price: {debug_info['api_data']['token']['price_gold']:,}g
 ✅ Auction count: {debug_info['api_data']['auctions']['total_count']:,}
 
-This data comes directly from Blizzard's API endpoints."""
+This data comes directly from Blizzard's API endpoints.
+
+**RAW API RESPONSES (JSON):**
+
+1. RAW TOKEN RESPONSE:
+{json.dumps(debug_info.get('raw_token_response', {}), indent=2)}
+
+2. RAW REALM RESPONSE (truncated):
+{json.dumps({k: v for k, v in debug_info.get('raw_realm_response', {}).items() if k in ['_links', 'id', 'name', 'slug', 'region', 'connected_realm']}, indent=2)}
+
+3. RAW AUCTION RESPONSE SAMPLE:
+{json.dumps(debug_info.get('raw_auction_response_sample', {}), indent=2)}"""
 
             return result
             
