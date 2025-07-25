@@ -55,7 +55,6 @@ class RateLimiter:
 class BlizzardAPIClient:
     """Blizzard Battle.net API client with OAuth2 authentication"""
     
-    BASE_URL = "https://us.api.blizzard.com"
     AUTH_URL = "https://oauth.battle.net/token"
     
     def __init__(self):
@@ -64,6 +63,9 @@ class BlizzardAPIClient:
         self.region = os.getenv("BLIZZARD_REGION", "us")
         self.locale = os.getenv("BLIZZARD_LOCALE", "en_US")
         
+        # Dynamic base URL based on region
+        self.base_url = f"https://{self.region}.api.blizzard.com"
+        
         if not self.client_id or not self.client_secret:
             raise ValueError("BLIZZARD_CLIENT_ID and BLIZZARD_CLIENT_SECRET must be set")
         
@@ -71,6 +73,13 @@ class BlizzardAPIClient:
         self.token_expires_at = None
         self.session: Optional[ClientSession] = None
         self.rate_limiter = RateLimiter(100, 1)  # 100 requests per second
+        
+        # EU realm list for auto-detection (common EU realms)
+        self.eu_realms = {
+            'tarren-mill', 'draenor', 'kazzak', 'argent-dawn', 'silvermoon', 
+            'stormrage-eu', 'ragnaros-eu', 'twisting-nether', 'outland', 
+            'frostmane', 'ravencrest', 'chamber-of-aspects', 'defias-brotherhood'
+        }
         
     async def __aenter__(self):
         """Async context manager entry"""
@@ -112,6 +121,44 @@ class BlizzardAPIClient:
         except aiohttp.ClientError as e:
             raise BlizzardAPIError(f"Network error getting access token: {str(e)}")
     
+    def detect_realm_region(self, realm: str) -> str:
+        """Detect the likely region for a realm based on known realm lists"""
+        realm_lower = realm.lower()
+        if realm_lower in self.eu_realms:
+            return 'eu'
+        # Default to configured region if not in EU list
+        return self.region
+    
+    async def make_request_with_region(self, endpoint: str, params: Optional[Dict] = None, 
+                                     detected_region: Optional[str] = None) -> Dict[str, Any]:
+        """Make API request with region detection for better error handling"""
+        # Use detected region if provided, otherwise use default
+        use_region = detected_region or self.region
+        original_base_url = self.base_url
+        
+        try:
+            # Temporarily use detected region
+            if detected_region and detected_region != self.region:
+                self.base_url = f"https://{detected_region}.api.blizzard.com"
+                logger.info(f"Using {detected_region.upper()} region endpoint for this request")
+            
+            return await self.make_request(endpoint, params)
+            
+        except BlizzardAPIError as e:
+            # If we get a 403 and haven't tried region detection yet, try the other region
+            if e.status_code == 403 and not detected_region:
+                logger.warning(f"403 error with {self.region.upper()} region, trying alternate region")
+                alternate_region = 'eu' if self.region == 'us' else 'us'
+                try:
+                    return await self.make_request_with_region(endpoint, params, alternate_region)
+                except BlizzardAPIError:
+                    # If both regions fail, raise the original error
+                    raise e
+            raise e
+        finally:
+            # Restore original base URL
+            self.base_url = original_base_url
+    
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10),
@@ -147,7 +194,7 @@ class BlizzardAPIClient:
         if params:
             default_params.update(params)
         
-        url = f"{self.BASE_URL}{endpoint}"
+        url = f"{self.base_url}{endpoint}"
         
         try:
             async with self.session.get(url, headers=headers, params=default_params) as response:
@@ -176,31 +223,43 @@ class BlizzardAPIClient:
         except aiohttp.ClientError as e:
             raise BlizzardAPIError(f"Network error: {str(e)}")
     
-    # Guild API methods - using proper endpoints and namespaces
+    # Guild API methods - using proper endpoints and namespaces with region detection
     async def get_guild_info(self, realm: str, guild_name: str) -> Dict[str, Any]:
-        """Get guild information"""
+        """Get guild information with automatic region detection"""
         # URL encode the guild name to handle special characters
         encoded_guild = quote(guild_name.lower(), safe='')
         endpoint = f"/data/wow/guild/{realm.lower()}/{encoded_guild}"
-        return await self.make_request(endpoint)
+        
+        # Auto-detect region for this realm
+        detected_region = self.detect_realm_region(realm)
+        return await self.make_request_with_region(endpoint, None, detected_region)
     
     async def get_guild_roster(self, realm: str, guild_name: str) -> Dict[str, Any]:
-        """Get guild roster"""
+        """Get guild roster with automatic region detection"""
         encoded_guild = quote(guild_name.lower(), safe='')
         endpoint = f"/data/wow/guild/{realm.lower()}/{encoded_guild}/roster"
-        return await self.make_request(endpoint)
+        
+        # Auto-detect region for this realm
+        detected_region = self.detect_realm_region(realm)
+        return await self.make_request_with_region(endpoint, None, detected_region)
     
     async def get_guild_achievements(self, realm: str, guild_name: str) -> Dict[str, Any]:
-        """Get guild achievements"""
+        """Get guild achievements with automatic region detection"""
         encoded_guild = quote(guild_name.lower(), safe='')
         endpoint = f"/data/wow/guild/{realm.lower()}/{encoded_guild}/achievements"
-        return await self.make_request(endpoint)
+        
+        # Auto-detect region for this realm
+        detected_region = self.detect_realm_region(realm)
+        return await self.make_request_with_region(endpoint, None, detected_region)
     
     async def get_guild_activity(self, realm: str, guild_name: str) -> Dict[str, Any]:
-        """Get guild activity"""
+        """Get guild activity with automatic region detection"""
         encoded_guild = quote(guild_name.lower(), safe='')
         endpoint = f"/data/wow/guild/{realm.lower()}/{encoded_guild}/activity"
-        return await self.make_request(endpoint)
+        
+        # Auto-detect region for this realm
+        detected_region = self.detect_realm_region(realm)
+        return await self.make_request_with_region(endpoint, None, detected_region)
     
     # Character API methods
     async def get_character_profile(self, realm: str, character_name: str) -> Dict[str, Any]:
