@@ -48,6 +48,17 @@ historical_data = defaultdict(lambda: defaultdict(list))
 HISTORY_MAX_ENTRIES = 288  # 24 hours of 5-minute intervals
 HISTORY_FILE = "historical_market_data.json"
 
+# Resource limits for security
+RESOURCE_LIMITS = {
+    "MAX_REALMS_PER_REQUEST": 5,      # Maximum realms that can be processed in a single request
+    "MAX_ITEMS_PER_REALM": 500,       # Maximum items to track per realm
+    "MAX_TOTAL_ITEMS": 2000,          # Absolute maximum items across all realms in one request
+    "MAX_EXECUTION_TIME": 300,        # Maximum execution time in seconds (5 minutes)
+    "MIN_SECONDS_BETWEEN_UPDATES": 60, # Minimum time between updates (rate limiting)
+    "MAX_HISTORICAL_DATA_MB": 100,    # Maximum memory for historical data
+    "MAX_DATA_POINTS_PER_ITEM": 288,  # 24 hours at 5-minute intervals
+}
+
 def cache_analysis(key: str, data: Any, ttl_hours: int = 1):
     """Cache analysis results"""
     analysis_cache[key] = data
@@ -141,6 +152,35 @@ def save_historical_data():
         logger.info(f"Saved historical data: {len(data_to_save)} items")
     except Exception as e:
         logger.error(f"Failed to save historical data: {e}")
+
+def calculate_historical_data_memory():
+    """Calculate approximate memory usage of historical data in MB"""
+    total_size = 0
+    for key, data in historical_data.items():
+        # Approximate: 50 bytes per data point
+        total_size += len(data.get("data_points", [])) * 50
+    return total_size / 1_000_000
+
+def cleanup_old_historical_data():
+    """Remove oldest data points to stay within memory limits"""
+    logger.info("Cleaning up old historical data to free memory...")
+    
+    # Sort items by number of data points (clean up largest first)
+    items_by_size = sorted(
+        historical_data.items(), 
+        key=lambda x: len(x[1].get("data_points", [])), 
+        reverse=True
+    )
+    
+    cleaned_count = 0
+    for key, data in items_by_size[:100]:  # Clean up top 100 largest
+        data_points = data.get("data_points", [])
+        if len(data_points) > RESOURCE_LIMITS["MAX_DATA_POINTS_PER_ITEM"]:
+            # Keep only recent data points
+            data["data_points"] = data_points[-RESOURCE_LIMITS["MAX_DATA_POINTS_PER_ITEM"]:]
+            cleaned_count += 1
+    
+    logger.info(f"Cleaned up {cleaned_count} items")
 
 def load_historical_data():
     """Load historical data from file"""
@@ -815,22 +855,46 @@ async def update_historical_database(
     Returns:
         Update status and statistics
     """
+    import time
+    
     try:
         if not API_AVAILABLE:
             return "Error: Blizzard API not available"
         
+        # 1. RATE LIMITING CHECK
+        last_update_key = "last_historical_update"
+        if last_update_key in analysis_cache:
+            last_update = analysis_cache[last_update_key]
+            if datetime.now() - last_update < timedelta(seconds=RESOURCE_LIMITS["MIN_SECONDS_BETWEEN_UPDATES"]):
+                seconds_to_wait = RESOURCE_LIMITS["MIN_SECONDS_BETWEEN_UPDATES"] - (datetime.now() - last_update).seconds
+                return f"❌ Rate limit: Please wait {seconds_to_wait} seconds before updating again."
+        
+        # 2. PARAMETER VALIDATION - Critical security check
+        if include_all_items and realms and realms.lower() == "all-us":
+            return "❌ Security Error: Cannot use include_all_items=true with realms='all-us' (potential DoS)"
+        
+        # Limit top_items to prevent resource exhaustion
+        top_items = min(max(top_items, 10), RESOURCE_LIMITS["MAX_ITEMS_PER_REALM"])
+        
+        # 3. MEMORY CHECK before starting
+        current_memory_mb = calculate_historical_data_memory()
+        if current_memory_mb > RESOURCE_LIMITS["MAX_HISTORICAL_DATA_MB"]:
+            cleanup_old_historical_data()
+            
+        # Track execution time
+        start_time = time.time()
+        
         # Parse realms or use defaults
         if realms:
             if realms.lower() == "all-us":
-                # Common US realms
+                # SECURITY: Limit to top 5 realms instead of all US realms
                 realm_list = [
                     ("us", "stormrage"), ("us", "area-52"), ("us", "tichondrius"),
-                    ("us", "mal-ganis"), ("us", "kiljaeden"), ("us", "illidan"),
-                    ("us", "thrall"), ("us", "zul-jin"), ("us", "dalaran"),
-                    ("us", "ragnaros"), ("us", "azralon"), ("us", "nemesis")
+                    ("us", "mal-ganis"), ("us", "kiljaeden")
                 ]
+                logger.warning("Limiting 'all-us' to top 5 realms for security")
             elif realms.lower() == "popular":
-                # Top population realms
+                # Top population realms - already limited to 10
                 realm_list = [
                     ("us", "stormrage"), ("us", "area-52"), ("us", "tichondrius"),
                     ("us", "mal-ganis"), ("us", "kiljaeden"), ("us", "illidan"),
@@ -839,14 +903,20 @@ async def update_historical_database(
                 ]
             else:
                 realm_list = []
-                for realm_spec in realms.split(","):
+                parsed_realms = realms.split(",")
+                
+                # SECURITY: Enforce realm limit
+                if len(parsed_realms) > RESOURCE_LIMITS["MAX_REALMS_PER_REQUEST"]:
+                    return f"❌ Error: Too many realms ({len(parsed_realms)}). Maximum {RESOURCE_LIMITS['MAX_REALMS_PER_REQUEST']} allowed."
+                
+                for realm_spec in parsed_realms:
                     parts = realm_spec.strip().split(":")
                     if len(parts) == 2:
                         realm_list.append((parts[1], parts[0]))  # (region, realm)
                     else:
                         realm_list.append(("us", parts[0]))  # Default to US
         else:
-            # Expanded default realms
+            # Default realms - already limited to 5
             realm_list = [
                 ("us", "stormrage"),
                 ("us", "area-52"),
@@ -854,9 +924,6 @@ async def update_historical_database(
                 ("us", "mal-ganis"),
                 ("us", "kiljaeden"),
             ]
-        
-        # Limit top_items to prevent resource exhaustion
-        top_items = min(max(top_items, 10), 500)
         
         result = f"""Historical Database Update
 Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -870,6 +937,19 @@ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         
         async with BlizzardAPIClient() as client:
             for region, realm in realm_list:
+                # SECURITY: Check timeout before processing each realm
+                elapsed_time = time.time() - start_time
+                if elapsed_time > RESOURCE_LIMITS["MAX_EXECUTION_TIME"]:
+                    result += f"\n\n⚠️ **TIMEOUT**: Operation stopped after {elapsed_time:.1f} seconds"
+                    result += f"\n• Processed {success_count}/{len(realm_list)} realms"
+                    result += f"\n• Tracked {total_items_tracked} items total"
+                    break
+                
+                # SECURITY: Check total items limit
+                if total_items_tracked >= RESOURCE_LIMITS["MAX_TOTAL_ITEMS"]:
+                    result += f"\n\n⚠️ **ITEM LIMIT**: Reached maximum of {RESOURCE_LIMITS['MAX_TOTAL_ITEMS']} items"
+                    break
+                
                 result += f"\n• {realm.title()} ({region.upper()}): "
                 
                 try:
@@ -910,13 +990,24 @@ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                     items_by_volume = sorted(item_quantities.items(), key=lambda x: x[1], reverse=True)
                     items_updated = 0
                     
-                    # Determine which items to track
+                    # Determine which items to track with security limits
                     if include_all_items:
-                        items_to_track = item_quantities.items()
+                        # SECURITY: Still enforce item limit even with include_all_items
+                        remaining_capacity = RESOURCE_LIMITS["MAX_TOTAL_ITEMS"] - total_items_tracked
+                        items_to_track = list(item_quantities.items())[:remaining_capacity]
+                        if len(item_quantities) > remaining_capacity:
+                            logger.warning(f"Limiting items from {len(item_quantities)} to {remaining_capacity} due to total limit")
                     else:
-                        items_to_track = items_by_volume[:top_items]
+                        # Calculate safe item limit for this realm
+                        remaining_capacity = RESOURCE_LIMITS["MAX_TOTAL_ITEMS"] - total_items_tracked
+                        safe_limit = min(top_items, remaining_capacity)
+                        items_to_track = items_by_volume[:safe_limit]
                     
                     for item_id, total_quantity in items_to_track:
+                        # Additional safety check
+                        if total_items_tracked >= RESOURCE_LIMITS["MAX_TOTAL_ITEMS"]:
+                            break
+                            
                         if item_id in item_prices and item_prices[item_id]:
                             avg_price = sum(item_prices[item_id]) / len(item_prices[item_id])
                             store_historical_data(region, realm, item_id, avg_price, total_quantity)
@@ -934,10 +1025,14 @@ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         # Save historical data
         save_historical_data()
         
+        # Update rate limit timestamp
+        analysis_cache[last_update_key] = datetime.now()
+        
         # Calculate comprehensive statistics
         total_data_points = sum(len(data["data_points"]) for data in historical_data.values())
         unique_items = len(set(key.split('_')[2] for key in historical_data.keys() if '_' in key))
         realms_with_data = len(set(f"{key.split('_')[0]}_{key.split('_')[1]}" for key in historical_data.keys() if '_' in key))
+        memory_usage_mb = calculate_historical_data_memory()
         
         # Summary
         result += f"""
@@ -964,14 +1059,22 @@ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         result += f"• Unique Items Tracked: {unique_items:,}\n"
         result += f"• Total Data Points: {total_data_points:,}\n"
         result += f"• Data Retention: 24 hours (288 points max per item)\n"
-        result += f"• Memory Usage: ~{total_data_points * 50 / 1_000_000:.1f} MB\n"
+        result += f"• Memory Usage: {memory_usage_mb:.1f} MB / {RESOURCE_LIMITS['MAX_HISTORICAL_DATA_MB']} MB\n"
+        result += f"• Execution Time: {time.time() - start_time:.1f} seconds\n"
+        
+        # Add security status
+        result += f"\n🔒 **SECURITY LIMITS**\n"
+        result += f"• Rate Limiting: Active (1 update per {RESOURCE_LIMITS['MIN_SECONDS_BETWEEN_UPDATES']}s)\n"
+        result += f"• Max Realms: {RESOURCE_LIMITS['MAX_REALMS_PER_REQUEST']} per request\n"
+        result += f"• Max Items: {RESOURCE_LIMITS['MAX_TOTAL_ITEMS']} total\n"
+        result += f"• Timeout: {RESOURCE_LIMITS['MAX_EXECUTION_TIME']}s\n"
         
         result += f"\n💡 **USAGE TIPS**\n"
         result += f"• For specific realms: realms='mal-ganis:us,kiljaeden:us'\n"
         result += f"• For popular realms: realms='popular'\n"
-        result += f"• For all US realms: realms='all-us'\n"
-        result += f"• For more items: top_items=200\n"
-        result += f"• For all items: include_all_items=true (slow!)\n"
+        result += f"• For all US realms: realms='all-us' (limited to 5 realms)\n"
+        result += f"• For more items: top_items=200 (max {RESOURCE_LIMITS['MAX_ITEMS_PER_REALM']})\n"
+        result += f"• ⚠️ include_all_items=true cannot be used with realms='all-us'\n"
         
         return result
         
