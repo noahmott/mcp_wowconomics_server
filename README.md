@@ -1,47 +1,45 @@
-# World of Warcraft Guild Analysis MCP Server
+# WoW Economic Analysis MCP Server
 
-A comprehensive AI-powered World of Warcraft guild analysis system built with FastAPI, LangGraph, and Discord integration. This application provides intelligent guild analytics, member performance tracking, and automated insights through a sophisticated MCP (Model Context Protocol) server.
+A powerful Model Context Protocol (MCP) server for World of Warcraft economic analysis, providing real-time market insights, crafting profitability calculations, and trend predictions.
 
 ## Features
 
-- 🏰 **Comprehensive Guild Analysis** - Real-time analysis of guild performance, member activity, and raid progression
-- 🤖 **AI-Powered Insights** - OpenAI integration for intelligent analysis and recommendations
-- 📊 **Rich Visualizations** - Interactive charts and graphs using Plotly
-- 🎮 **Discord Bot Integration** - Seamless interaction through Discord with rich embeds
-- 🔄 **MCP Protocol Compliance** - Full Model Context Protocol implementation for AI assistant integration
-- 📈 **Advanced Orchestration** - LangGraph state management for complex workflow handling
-- ⚡ **High Performance** - Redis caching and optimized database queries
-- 🛡️ **Production Ready** - Comprehensive error handling and monitoring
+- 📊 **Market Analysis** - Real-time analysis of WoW auction house data across realms
+- 💰 **Crafting Profits** - Calculate profitability for crafting professions
+- 📈 **Trend Prediction** - Historical data tracking and market trend analysis
+- 🔍 **Item Intelligence** - Detailed item information and market positioning
+- 🤖 **AI Integration** - MCP protocol for seamless AI assistant integration
+- ⚡ **High Performance** - Redis caching and optimized API calls
+- 🌐 **Multi-Region Support** - Works with US, EU, KR, and TW regions
 
-## Architecture
+## Available MCP Tools
 
-```
-Discord Bot ←→ FastAPI MCP Server ←→ LangGraph Orchestrator
-                      ↓
-              Blizzard Battle.net API
-                      ↓
-              PostgreSQL + Redis Cache
-                      ↓
-              Plotly Visualizations
-```
+1. **analyze_market_opportunities** - Find profitable market opportunities on a realm
+2. **analyze_crafting_profits** - Analyze crafting profitability for recipes
+3. **predict_market_trends** - Predict market trends based on historical data
+4. **get_historical_data** - Retrieve historical price data for items
+5. **update_historical_database** - Update the historical database
+6. **analyze_with_details** - Detailed market analysis with calculations
+7. **debug_api_data** - Debug API responses and data
+8. **get_item_info** - Get detailed information about WoW items
+9. **check_staging_data** - Check staging data cache statistics
+10. **get_analysis_help** - Get help on using the analysis tools
 
 ## Quick Start
 
 ### Prerequisites
 
 - Python 3.11+
-- PostgreSQL database
-- Redis server
+- PostgreSQL database (for data persistence)
+- Redis server (for caching)
 - Blizzard Battle.net API credentials
-- Discord bot token
-- OpenAI API key
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/wow-guild-mcp.git
-   cd wow-guild-mcp
+   git clone https://github.com/yourusername/wow-economic-mcp.git
+   cd wow-economic-mcp
    ```
 
 2. **Install dependencies**
@@ -52,105 +50,88 @@ Discord Bot ←→ FastAPI MCP Server ←→ LangGraph Orchestrator
 3. **Set up environment variables**
    ```bash
    cp .env.example .env
-   # Edit .env with your API keys and configuration
+   # Edit .env with your API keys:
+   # - BLIZZARD_CLIENT_ID
+   # - BLIZZARD_CLIENT_SECRET
+   # - DATABASE_URL (optional)
+   # - REDIS_URL (optional)
    ```
 
-4. **Initialize the database**
+4. **Run the MCP server**
    ```bash
-   python -c "from app.models.database import init_db; import asyncio; asyncio.run(init_db())"
+   python analysis_mcp_server.py
    ```
 
-5. **Run the application**
-   ```bash
-   # Start the web server
-   uvicorn app.main:app --reload
+   The server will start on `http://localhost:8000/mcp/`
 
-   # Start the Discord bot (in another terminal)
-   python -m app.discord_bot
-   ```
+## Usage Examples
 
-## API Documentation
+### Finding Market Opportunities
+```python
+# The MCP server will analyze current market conditions
+# and identify items with high profit potential
+analyze_market_opportunities(realm_slug="stormrage", region="us")
+```
 
-### MCP Tools
+### Checking Crafting Profitability
+```python
+# Analyze which crafting recipes are currently profitable
+analyze_crafting_profits(
+    profession="alchemy",
+    realm_slug="area-52",
+    region="us",
+    min_profit=1000
+)
+```
 
-#### `analyze_guild_performance`
-Analyze guild performance metrics and member activity.
-
-**Parameters:**
-- `realm` (str): Server realm (e.g., 'stormrage', 'area-52')
-- `guild_name` (str): Guild name
-- `analysis_type` (str, optional): Type of analysis ('comprehensive', 'basic', 'performance')
-
-#### `generate_raid_progress_chart`
-Generate visual raid progression charts.
-
-**Parameters:**
-- `realm` (str): Server realm
-- `guild_name` (str): Guild name
-- `raid_tier` (str, optional): Raid tier ('current', 'dragonflight', 'shadowlands')
-
-#### `compare_member_performance`
-Compare performance metrics across guild members.
-
-**Parameters:**
-- `realm` (str): Server realm
-- `guild_name` (str): Guild name
-- `member_names` (list[str]): List of character names to compare
-- `metric` (str, optional): Metric to compare ('item_level', 'achievement_points', 'guild_rank')
-
-## Discord Bot Commands
-
-### Guild Commands
-- `!wow guild <realm> <guild_name>` - Comprehensive guild analysis
-- `!wow members <realm> <guild_name>` - Guild member list
-- `!wow progress <realm> <guild_name>` - Raid progression
-
-### Member Commands
-- `!wow member <realm> <character_name>` - Individual member analysis
-- `!wow compare <realm> <guild_name> <member1> <member2>...` - Compare members
-
-### Chart Commands
-- `!wow chart <realm> <guild_name>` - Generate guild charts
-- `!wow classes <realm> <guild_name>` - Class distribution chart
+### Item Information Lookup
+```python
+# Get detailed information about any WoW item
+get_item_info(item_name="Flask of Tempered Versatility")
+```
 
 ## Deployment
 
 ### Heroku Deployment
 
+The project includes configuration for Heroku deployment:
+
 1. **Create Heroku app**
    ```bash
-   heroku create wow-guild-mcp-server
+   heroku create your-app-name
    ```
 
-2. **Add required add-ons**
-   ```bash
-   heroku addons:create heroku-postgresql:mini
-   heroku addons:create heroku-redis:mini
-   heroku addons:create papertrail:choklad
-   ```
-
-3. **Set environment variables**
+2. **Set environment variables**
    ```bash
    heroku config:set BLIZZARD_CLIENT_ID=your_client_id
    heroku config:set BLIZZARD_CLIENT_SECRET=your_client_secret
-   heroku config:set DISCORD_BOT_TOKEN=your_bot_token
-   heroku config:set OPENAI_API_KEY=your_openai_key
    ```
 
-4. **Deploy**
+3. **Deploy**
    ```bash
    git push heroku main
-   heroku ps:scale web=1 bot=1
    ```
 
 ### Docker Deployment
 
 ```bash
 # Build the image
-docker build -t wow-guild-mcp .
+docker build -t wow-economic-mcp .
 
 # Run the container
-docker run -p 8000:8000 --env-file .env wow-guild-mcp
+docker run -p 8000:8000 --env-file .env wow-economic-mcp
+```
+
+## Architecture
+
+```
+MCP Client (Claude, etc.) ←→ FastMCP Server
+                                    ↓
+                            Blizzard WoW API
+                                    ↓
+                            Data Processing Layer
+                                    ↓
+                        PostgreSQL + Redis Cache
 ```
 
 ## Configuration
@@ -159,89 +140,70 @@ docker run -p 8000:8000 --env-file .env wow-guild-mcp
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `BLIZZARD_CLIENT_ID` | Blizzard Battle.net API Client ID | Yes |
-| `BLIZZARD_CLIENT_SECRET` | Blizzard Battle.net API Client Secret | Yes |
-| `DISCORD_BOT_TOKEN` | Discord bot token | Yes |
-| `OPENAI_API_KEY` | OpenAI API key for AI insights | Yes |
-| `DATABASE_URL` | PostgreSQL database URL | Yes |
-| `REDIS_URL` | Redis server URL | Yes |
-| `LANGSMITH_API_KEY` | LangSmith API key (optional) | No |
-| `DEBUG` | Enable debug mode | No |
+| `BLIZZARD_CLIENT_ID` | Blizzard API Client ID | Yes |
+| `BLIZZARD_CLIENT_SECRET` | Blizzard API Client Secret | Yes |
+| `DATABASE_URL` | PostgreSQL connection string | No |
+| `REDIS_URL` | Redis connection string | No |
+| `PORT` | Server port (default: 8000) | No |
 
-### API Rate Limits
+### API Rate Limiting
 
-The application implements intelligent rate limiting for the Blizzard API:
-- **Default**: 100 requests per second
-- **Automatic backoff** on rate limit responses
-- **Caching** to reduce API calls
+The server implements intelligent rate limiting:
+- Respects Blizzard API rate limits
+- Implements caching to reduce API calls
+- Automatic retry with exponential backoff
 
 ## Development
 
 ### Project Structure
 
 ```
-app/
-├── __init__.py
-├── main.py                 # FastAPI application
-├── mcp_server.py          # MCP implementation
-├── discord_bot.py         # Discord bot client
-├── api/
-│   └── blizzard_client.py # WoW API integration
-├── models/
-│   ├── database.py        # Database configuration
-│   ├── guild.py          # Guild models
-│   ├── member.py         # Member models
-│   └── raid.py           # Raid models
-├── workflows/
-│   └── guild_analysis.py # LangGraph workflows
-├── visualization/
-│   └── chart_generator.py # Chart generation
-└── utils/
-    ├── cache.py          # Redis caching
-    └── errors.py         # Error handling
+├── analysis_mcp_server.py    # Main MCP server
+├── app/
+│   ├── api/
+│   │   └── blizzard_client.py    # WoW API client
+│   ├── models/
+│   │   ├── database.py           # Database models
+│   │   └── wow_cache.py          # Cache models
+│   └── services/
+│       └── wow_data_staging.py   # Data staging service
+├── scheduled_update.py           # Scheduled data updates
+└── requirements.txt              # Python dependencies
 ```
 
 ### Running Tests
 
 ```bash
-pytest tests/ -v
+# Run the MCP server locally
+python analysis_mcp_server.py
+
+# Test with FastMCP client
+python -c "from fastmcp import Client; ..."
 ```
 
-### Code Quality
+## MCP Integration
 
-```bash
-# Format code
-black app/
+This server implements the Model Context Protocol (MCP) using FastMCP 2.0, making it compatible with:
+- Claude Desktop
+- Other MCP-compatible AI assistants
+- Custom MCP clients
 
-# Sort imports
-isort app/
-
-# Type checking
-mypy app/
-```
+For integration details, see [MCP Usage Guide](README_MCP_USAGE.md).
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create a feature branch (`git checkout -b feature/new-analysis`)
+3. Commit your changes (`git commit -m 'Add new analysis tool'`)
+4. Push to the branch (`git push origin feature/new-analysis`)
 5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-- 📖 **Documentation**: Check this README and code comments
-- 🐛 **Bug Reports**: Open an issue on GitHub
-- 💬 **Questions**: Start a discussion on GitHub
-- 📧 **Contact**: [your-email@example.com]
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgments
 
 - Blizzard Entertainment for the Battle.net API
-- OpenAI for AI capabilities
-- Discord for bot integration platform
-- The Python community for excellent libraries
+- FastMCP for the excellent MCP implementation
+- The WoW community for market insights

@@ -67,3 +67,26 @@ testing/
 *.tmp
 *.temp
 .cache/
+nul
+
+# Output files
+*.txt
+!requirements.txt
+*.json
+!app.json
+!package.json
+!tsconfig.json
+
+# Debug files
+debug_*.py
+check_*.py
+verify_*.py
+validate_*.py
+
+# Test variations of MCP server
+*_mcp_server.py
+!analysis_mcp_server.py
+
+# Historical data
+historical_*.json
+historical_*.txt
