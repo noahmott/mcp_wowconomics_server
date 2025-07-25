@@ -23,12 +23,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Create FastMCP server with HTTP configuration for Heroku
-mcp = FastMCP(
-    name="WoW Economic Analysis Server",
-    host="0.0.0.0",
-    port=int(os.getenv("PORT", "8000"))
-)
+# Create FastMCP server
+mcp = FastMCP("WoW Economic Analysis Server")
 
 # Import the Blizzard API client
 try:
@@ -763,8 +759,12 @@ def main():
         if client_id:
             logger.info(f"✅ Blizzard API configured: {client_id[:10]}...")
         
-        # Run server using FastMCP 2.0 HTTP transport (CRITICAL!)
-        mcp.run(transport="http")
+        # Run server using FastMCP 2.0 HTTP transport
+        mcp.run(
+            transport="http",
+            host="0.0.0.0",
+            port=port
+        )
         
     except Exception as e:
         logger.error(f"❌ Error starting server: {e}")
