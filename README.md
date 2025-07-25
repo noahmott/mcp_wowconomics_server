@@ -138,14 +138,43 @@ graph LR
 
 ## 🚀 Quick Start for Researchers
 
-### Prerequisites
+### Option 1: Connect via MCP Client (Recommended)
+
+Researchers can directly connect to our hosted MCP endpoint without local installation:
+
+```python
+from fastmcp import Client
+
+# Connect to the research server
+async with Client("https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/mcp/") as client:
+    # List available research tools
+    tools = await client.list_tools()
+    
+    # Execute analysis
+    result = await client.call_tool(
+        "analyze_market_opportunities",
+        {"realm_slug": "stormrage", "region": "us"}
+    )
+```
+
+**Benefits:**
+- No local setup required
+- Always up-to-date with latest analysis methods
+- Automatic scaling for large datasets
+- Maintained infrastructure
+
+### Option 2: Local Installation
+
+For researchers who need custom modifications or offline analysis:
+
+#### Prerequisites
 
 - Python 3.11+ with scientific computing libraries
 - Blizzard API Credentials ([Academic Access](https://develop.battle.net/access/))
-- PostgreSQL for data persistence
-- Redis for real-time caching
+- PostgreSQL for data persistence (optional)
+- Redis for real-time caching (optional)
 
-### Installation
+#### Installation
 
 ```bash
 # Clone the repository
@@ -215,6 +244,50 @@ analysis = await analyze_with_details(
 # Returns GARCH model parameters and volatility clusters
 print(f"Average volatility: {analysis['avg_volatility']}%")
 print(f"Volatility clusters detected: {analysis['cluster_count']}")
+```
+
+## 🔌 MCP Integration for Research Clients
+
+### Supported MCP Clients
+
+Researchers can connect using any MCP-compatible client:
+
+- **Claude Desktop** - For interactive analysis and exploration
+- **Python FastMCP** - For programmatic research workflows
+- **Custom MCP Clients** - Any client implementing the MCP protocol
+
+### Connection Details
+
+```yaml
+Server Endpoint: https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/mcp/
+Protocol: MCP 2.0 (HTTP Transport with SSE)
+Authentication: None required for public research data
+Rate Limits: 100 requests/minute per client
+```
+
+### Example: Jupyter Notebook Integration
+
+```python
+import asyncio
+from fastmcp import Client
+import pandas as pd
+
+async def fetch_market_data(realm, region="us"):
+    """Fetch market data for research analysis"""
+    async with Client("https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/mcp/") as client:
+        # Get historical data
+        historical = await client.call_tool(
+            "get_historical_data",
+            {"realm_slug": realm, "region": region}
+        )
+        
+        # Convert to DataFrame for analysis
+        df = pd.DataFrame(historical['data'])
+        return df
+
+# Use in research
+df = await fetch_market_data("stormrage")
+df.describe()  # Statistical summary
 ```
 
 ## 📊 Data Export
