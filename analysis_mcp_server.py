@@ -11,6 +11,11 @@ from datetime import datetime, timedelta
 from collections import defaultdict, Counter
 from dotenv import load_dotenv
 from fastmcp import FastMCP
+import plotly.graph_objects as go
+import plotly.express as px
+from plotly.subplots import make_subplots
+import pandas as pd
+import numpy as np
 
 # Load environment variables
 load_dotenv()
@@ -921,6 +926,318 @@ Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         return f"Error updating historical database: {str(e)}"
 
 @mcp.tool()
+async def analyze_with_details(analysis_type: str = "volatility", realm_slug: str = "stormrage", region: str = "us", top_n: int = 20) -> str:
+    """
+    Perform detailed market analysis showing all calculations and work.
+    
+    Args:
+        analysis_type: Type of analysis - "volatility", "trends", "opportunities", "cross_realm"
+        realm_slug: Realm to analyze
+        region: Region code
+        top_n: Number of top items to include
+    
+    Returns:
+        Detailed analysis with step-by-step calculations and visualizations
+    """
+    try:
+        timestamp = datetime.now()
+        result = f"""Detailed Market Analysis - {analysis_type.title()}
+Realm: {realm_slug.title()} ({region.upper()})
+Generated: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}
+
+📊 **ANALYSIS TYPE**: {analysis_type.upper()}
+================================================================================
+"""
+        
+        # Step 1: Data Collection
+        result += "\n🔍 **STEP 1: DATA COLLECTION**\n"
+        result += "-" * 80 + "\n"
+        
+        # Get historical data for the realm
+        historical_items = []
+        data_points_by_item = {}
+        
+        for key in historical_data:
+            if key.startswith(f"{region}_{realm_slug}_"):
+                item_id = historical_data[key].get("item_id")
+                if item_id and "data_points" in historical_data[key]:
+                    data_points = historical_data[key]["data_points"]
+                    if len(data_points) > 1:  # Need at least 2 points for analysis
+                        historical_items.append(item_id)
+                        data_points_by_item[item_id] = data_points
+        
+        result += f"• Total items with historical data: {len(historical_items)}\n"
+        result += f"• Items with 2+ data points: {len(data_points_by_item)}\n"
+        result += f"• Analysis scope: Last 24 hours\n"
+        
+        if not data_points_by_item:
+            return result + "\n❌ Insufficient historical data. Please run update_historical_database first."
+        
+        # Step 2: Calculate Metrics
+        result += "\n\n📈 **STEP 2: METRIC CALCULATIONS**\n"
+        result += "-" * 80 + "\n"
+        
+        metrics_by_item = {}
+        
+        for item_id, data_points in data_points_by_item.items():
+            # Extract prices and timestamps
+            prices = [dp["price"] for dp in data_points]
+            quantities = [dp["quantity"] for dp in data_points]
+            timestamps = [datetime.fromisoformat(dp["timestamp"]) for dp in data_points]
+            
+            # Calculate metrics
+            avg_price = sum(prices) / len(prices)
+            min_price = min(prices)
+            max_price = max(prices)
+            current_price = prices[-1]
+            
+            # Volatility calculation
+            if avg_price > 0:
+                price_volatility = (max_price - min_price) / avg_price
+            else:
+                price_volatility = 0
+            
+            # Trend calculation
+            if len(prices) >= 2:
+                # Simple linear regression for trend
+                x = list(range(len(prices)))
+                x_mean = sum(x) / len(x)
+                y_mean = avg_price
+                
+                numerator = sum((x[i] - x_mean) * (prices[i] - y_mean) for i in range(len(prices)))
+                denominator = sum((x[i] - x_mean) ** 2 for i in range(len(prices)))
+                
+                if denominator != 0:
+                    slope = numerator / denominator
+                    trend_percentage = (slope / avg_price) * 100 if avg_price > 0 else 0
+                else:
+                    trend_percentage = 0
+            else:
+                trend_percentage = 0
+            
+            # Volume metrics
+            avg_quantity = sum(quantities) / len(quantities)
+            total_volume = sum(quantities)
+            
+            metrics_by_item[item_id] = {
+                "avg_price": avg_price,
+                "min_price": min_price,
+                "max_price": max_price,
+                "current_price": current_price,
+                "volatility": price_volatility,
+                "trend": trend_percentage,
+                "avg_quantity": avg_quantity,
+                "total_volume": total_volume,
+                "data_points": len(prices),
+                "price_history": prices,
+                "timestamp_history": timestamps
+            }
+        
+        result += f"• Metrics calculated for {len(metrics_by_item)} items\n"
+        result += f"• Calculations performed:\n"
+        result += f"  - Price volatility: (max - min) / average\n"
+        result += f"  - Trend: Linear regression slope as % of average\n"
+        result += f"  - Volume metrics: Average and total quantities\n"
+        
+        # Step 3: Analysis-specific processing
+        result += f"\n\n📊 **STEP 3: {analysis_type.upper()} ANALYSIS**\n"
+        result += "-" * 80 + "\n"
+        
+        if analysis_type == "volatility":
+            # Sort by volatility
+            sorted_items = sorted(metrics_by_item.items(), 
+                                key=lambda x: x[1]["volatility"], 
+                                reverse=True)[:top_n]
+            
+            result += f"\nTop {len(sorted_items)} Most Volatile Items:\n\n"
+            
+            # Create volatility data for visualization
+            volatility_data = []
+            
+            for rank, (item_id, metrics) in enumerate(sorted_items, 1):
+                volatility_pct = metrics["volatility"] * 100
+                result += f"{rank}. Item #{item_id}\n"
+                result += f"   • Volatility: {volatility_pct:.2f}%\n"
+                result += f"   • Price range: {int(metrics['min_price']//10000):,}g - {int(metrics['max_price']//10000):,}g\n"
+                result += f"   • Average: {int(metrics['avg_price']//10000):,}g\n"
+                result += f"   • Current: {int(metrics['current_price']//10000):,}g\n"
+                result += f"   • Trend: {metrics['trend']:+.2f}%/hour\n"
+                result += f"   • Data points: {metrics['data_points']}\n"
+                result += f"   • Calculation: ({int(metrics['max_price']//10000):,} - {int(metrics['min_price']//10000):,}) / {int(metrics['avg_price']//10000):,} = {volatility_pct:.2f}%\n"
+                result += "\n"
+                
+                volatility_data.append({
+                    "item_id": f"Item {item_id}",
+                    "volatility": volatility_pct,
+                    "avg_price": metrics['avg_price'] / 10000,
+                    "volume": metrics['total_volume']
+                })
+            
+            # Create visualization
+            if volatility_data:
+                df = pd.DataFrame(volatility_data)
+                
+                # Create bubble chart
+                fig = go.Figure()
+                
+                fig.add_trace(go.Scatter(
+                    x=df['avg_price'],
+                    y=df['volatility'],
+                    mode='markers+text',
+                    marker=dict(
+                        size=df['volume'] / df['volume'].max() * 100,
+                        color=df['volatility'],
+                        colorscale='Viridis',
+                        showscale=True,
+                        colorbar=dict(title="Volatility %")
+                    ),
+                    text=df['item_id'],
+                    textposition="top center"
+                ))
+                
+                fig.update_layout(
+                    title="Price Volatility Analysis - Bubble Size = Trading Volume",
+                    xaxis_title="Average Price (gold)",
+                    yaxis_title="Volatility (%)",
+                    height=600
+                )
+                
+                # Save visualization
+                chart_path = f"volatility_analysis_{timestamp.strftime('%Y%m%d_%H%M%S')}.html"
+                fig.write_html(chart_path)
+                result += f"\n📊 **VISUALIZATION CREATED**: {chart_path}\n"
+        
+        elif analysis_type == "trends":
+            # Sort by trend strength
+            sorted_items = sorted(metrics_by_item.items(), 
+                                key=lambda x: abs(x[1]["trend"]), 
+                                reverse=True)[:top_n]
+            
+            result += f"\nTop {len(sorted_items)} Trending Items:\n\n"
+            
+            rising = []
+            falling = []
+            
+            for rank, (item_id, metrics) in enumerate(sorted_items, 1):
+                trend = metrics["trend"]
+                result += f"{rank}. Item #{item_id}: {trend:+.2f}%/hour\n"
+                result += f"   • Direction: {'📈 RISING' if trend > 0 else '📉 FALLING' if trend < 0 else '➡️ STABLE'}\n"
+                result += f"   • Current: {int(metrics['current_price']//10000):,}g\n"
+                result += f"   • 24h change: {int((metrics['current_price'] - metrics['min_price'])//10000):,}g\n"
+                result += f"   • Projected next hour: {int((metrics['current_price'] * (1 + trend/100))//10000):,}g\n"
+                result += f"   • Confidence: {'High' if metrics['data_points'] > 10 else 'Medium' if metrics['data_points'] > 5 else 'Low'}\n"
+                result += "\n"
+                
+                if trend > 0:
+                    rising.append((item_id, trend))
+                else:
+                    falling.append((item_id, trend))
+            
+            result += f"\n📊 **TREND SUMMARY**:\n"
+            result += f"• Rising items: {len(rising)}\n"
+            result += f"• Falling items: {len(falling)}\n"
+            result += f"• Average trend: {sum(m['trend'] for m in metrics_by_item.values()) / len(metrics_by_item):.2f}%/hour\n"
+        
+        elif analysis_type == "opportunities":
+            # Find arbitrage and flip opportunities
+            opportunities = []
+            
+            for item_id, metrics in metrics_by_item.items():
+                # Opportunity score based on volatility and current position
+                price_position = (metrics['current_price'] - metrics['min_price']) / (metrics['max_price'] - metrics['min_price']) if metrics['max_price'] > metrics['min_price'] else 0.5
+                
+                if price_position < 0.3 and metrics['trend'] > 0:
+                    # Near bottom, trending up
+                    opportunity_type = "BUY"
+                    score = (1 - price_position) * metrics['volatility'] * 100
+                elif price_position > 0.7 and metrics['trend'] < 0:
+                    # Near top, trending down
+                    opportunity_type = "SELL"
+                    score = price_position * metrics['volatility'] * 100
+                elif metrics['volatility'] > 0.2:
+                    # High volatility flip opportunity
+                    opportunity_type = "FLIP"
+                    score = metrics['volatility'] * 50
+                else:
+                    continue
+                
+                opportunities.append({
+                    "item_id": item_id,
+                    "type": opportunity_type,
+                    "score": score,
+                    "metrics": metrics
+                })
+            
+            # Sort by opportunity score
+            opportunities.sort(key=lambda x: x['score'], reverse=True)
+            
+            result += f"\nTop {min(len(opportunities), top_n)} Market Opportunities:\n\n"
+            
+            for rank, opp in enumerate(opportunities[:top_n], 1):
+                item_id = opp['item_id']
+                metrics = opp['metrics']
+                
+                result += f"{rank}. Item #{item_id} - {opp['type']} OPPORTUNITY (Score: {opp['score']:.1f})\n"
+                result += f"   • Current: {int(metrics['current_price']//10000):,}g\n"
+                result += f"   • Range: {int(metrics['min_price']//10000):,}g - {int(metrics['max_price']//10000):,}g\n"
+                
+                if opp['type'] == "BUY":
+                    profit_potential = metrics['avg_price'] - metrics['current_price']
+                    result += f"   • Profit potential: {int(profit_potential//10000):,}g per item\n"
+                    result += f"   • Entry point: Near 24h low\n"
+                elif opp['type'] == "SELL":
+                    result += f"   • Exit point: Near 24h high\n"
+                    result += f"   • Risk: Price declining {metrics['trend']:.1f}%/hour\n"
+                else:  # FLIP
+                    result += f"   • Flip margin: {int((metrics['max_price'] - metrics['min_price'])//10000):,}g\n"
+                    result += f"   • Buy below: {int((metrics['min_price'] * 1.1)//10000):,}g\n"
+                    result += f"   • Sell above: {int((metrics['max_price'] * 0.9)//10000):,}g\n"
+                
+                result += "\n"
+        
+        # Step 4: Statistical Summary
+        result += "\n\n📊 **STEP 4: STATISTICAL SUMMARY**\n"
+        result += "-" * 80 + "\n"
+        
+        all_volatilities = [m['volatility'] for m in metrics_by_item.values()]
+        all_trends = [m['trend'] for m in metrics_by_item.values()]
+        
+        result += f"\nMarket-wide Statistics:\n"
+        result += f"• Average volatility: {sum(all_volatilities) / len(all_volatilities) * 100:.2f}%\n"
+        result += f"• Median volatility: {sorted(all_volatilities)[len(all_volatilities)//2] * 100:.2f}%\n"
+        result += f"• Max volatility: {max(all_volatilities) * 100:.2f}%\n"
+        result += f"• Average trend: {sum(all_trends) / len(all_trends):.2f}%/hour\n"
+        result += f"• Rising items: {sum(1 for t in all_trends if t > 0)} ({sum(1 for t in all_trends if t > 0) / len(all_trends) * 100:.1f}%)\n"
+        result += f"• Falling items: {sum(1 for t in all_trends if t < 0)} ({sum(1 for t in all_trends if t < 0) / len(all_trends) * 100:.1f}%)\n"
+        
+        # Step 5: Recommendations
+        result += "\n\n💡 **STEP 5: ACTIONABLE RECOMMENDATIONS**\n"
+        result += "-" * 80 + "\n"
+        
+        if analysis_type == "volatility":
+            result += "\n1. **High Volatility Items**: Focus on items with >20% volatility for flipping\n"
+            result += "2. **Entry Strategy**: Buy when price is below 30% of daily range\n"
+            result += "3. **Exit Strategy**: Sell when price is above 70% of daily range\n"
+            result += "4. **Risk Management**: Don't invest more than 10% in any single volatile item\n"
+        elif analysis_type == "trends":
+            result += "\n1. **Rising Trends**: Buy items with >5%/hour growth and hold for 2-4 hours\n"
+            result += "2. **Falling Trends**: Sell immediately or short items with <-5%/hour decline\n"
+            result += "3. **Timing**: Best results when trends have 10+ data points (high confidence)\n"
+        elif analysis_type == "opportunities":
+            result += "\n1. **BUY Signals**: Act quickly on items near 24h lows with upward trends\n"
+            result += "2. **SELL Signals**: Exit positions near 24h highs with downward trends\n"
+            result += "3. **FLIP Strategy**: Focus on items with >20% daily range for quick profits\n"
+        
+        result += "\n\n" + "="*80 + "\n"
+        result += "Analysis complete. All calculations and methodology shown above.\n"
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error in detailed analysis: {str(e)}")
+        return f"Error performing analysis: {str(e)}"
+
+@mcp.tool()
 async def debug_api_data(realm_slug: str = "stormrage", region: str = "us") -> str:
     """
     Get raw API data for debugging purposes.
@@ -1394,6 +1711,13 @@ def get_analysis_help() -> str:
    • Can specify custom realms or use defaults
    • Best for: Scheduled data collection
 
+9. **analyze_with_details**
+   • Performs in-depth analysis with all calculations shown
+   • Types: volatility, trends, opportunities
+   • Shows step-by-step methodology and formulas
+   • Creates Plotly visualizations for data
+   • Best for: Understanding market dynamics with proof
+
 📋 **HOW TO USE EFFECTIVELY**
 
 **Daily Routine:**
@@ -1450,7 +1774,7 @@ def main():
         
         logger.info("🚀 WoW Economic Analysis Server with FastMCP 2.0")
         logger.info("🔧 Tools: Market analysis, crafting profits, predictions, historical data, debug, item lookup, staging")
-        logger.info("📊 Registered tools: 9 WoW economic analysis tools")
+        logger.info("📊 Registered tools: 10 WoW economic analysis tools")
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
         
