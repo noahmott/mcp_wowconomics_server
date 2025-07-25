@@ -77,11 +77,14 @@ nul
 !package.json
 !tsconfig.json
 
-# Debug files
+# Debug and utility files
 debug_*.py
 check_*.py
 verify_*.py
 validate_*.py
+simple_*.py
+*_check.py
+*_test_*.py
 
 # Test variations of MCP server
 *_mcp_server.py
