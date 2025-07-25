@@ -434,7 +434,7 @@ async def find_arbitrage_opportunities(regions: str = "us,eu") -> str:
                     buyout = auction.get('buyout', 0)
                     quantity = auction.get('quantity', 1)
                     
-                    if buyout > 0:
+                    if buyout > 0 and quantity > 0:
                         price_per_unit = buyout / quantity
                         item_prices[item_id].append(price_per_unit)
                 
