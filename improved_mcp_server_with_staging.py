@@ -77,8 +77,12 @@ async def analyze_realm_economy_cached(realm_slug: str, region: str = "us") -> s
     Returns:
         Economic health report with market trends and caching status
     """
+    global staging_service
     if not staging_service:
-        return "❌ Staging service not available. Please check server configuration."
+        await init_staging_service()
+    
+    if not staging_service:
+        return "❌ Staging service failed to initialize. Using fallback analysis."
     
     try:
         # Get cached auction data
@@ -164,8 +168,12 @@ async def analyze_guild_cached(realm: str, guild_name: str, region: str = "us") 
     Returns:
         Guild analysis results with caching status
     """
+    global staging_service
     if not staging_service:
-        return "❌ Staging service not available. Please check server configuration."
+        await init_staging_service()
+    
+    if not staging_service:
+        return "❌ Staging service failed to initialize. Using fallback analysis."
     
     try:
         cache_key = f"{realm}:{guild_name}"
@@ -235,8 +243,12 @@ async def get_wow_token_price_cached(region: str = "us") -> str:
     Returns:
         Token price with market analysis and caching status
     """
+    global staging_service
     if not staging_service:
-        return "❌ Staging service not available. Please check server configuration."
+        await init_staging_service()
+    
+    if not staging_service:
+        return "❌ Staging service failed to initialize. Using fallback analysis."
     
     try:
         token_data = await staging_service.get_data('token', 'current', region)
@@ -323,8 +335,12 @@ async def seed_wow_data(data_types: str, targets: str, region: str = "us") -> st
     Returns:
         Data seeding results and statistics
     """
+    global staging_service
     if not staging_service:
-        return "❌ Staging service not available. Please check server configuration."
+        await init_staging_service()
+    
+    if not staging_service:
+        return "❌ Staging service failed to initialize. Using fallback analysis."
     
     try:
         # Parse inputs
@@ -373,8 +389,12 @@ async def get_cache_statistics() -> str:
     Returns:
         Cache statistics and system health information
     """
+    global staging_service
     if not staging_service:
-        return "❌ Staging service not available. Please check server configuration."
+        await init_staging_service()
+    
+    if not staging_service:
+        return "❌ Staging service failed to initialize. Using fallback analysis."
     
     try:
         stats = await staging_service.get_cache_stats()
@@ -423,8 +443,12 @@ async def optimize_event_economics_cached(event_type: str, realm_slug: str, regi
     Returns:
         Event-specific market opportunities and preparation strategies
     """
+    global staging_service
     if not staging_service:
-        return "❌ Staging service not available. Please check server configuration."
+        await init_staging_service()
+    
+    if not staging_service:
+        return "❌ Staging service failed to initialize. Using fallback analysis."
     
     try:
         # Get realm data for context
@@ -527,10 +551,8 @@ def main():
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
         
-        # Initialize staging service
-        asyncio.create_task(init_staging_service())
-        
         # Run server using FastMCP 2.0 HTTP transport
+        # Note: The staging service will be initialized on first request
         mcp.run(transport="http")
         
     except Exception as e:
