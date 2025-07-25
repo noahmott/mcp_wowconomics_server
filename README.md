@@ -4,14 +4,10 @@
 
 ### Academic Research Tool for Virtual Economy Analysis
 
-[![Deploy](https://img.shields.io/badge/Deploy-Heroku-7056BF.svg?style=for-the-badge&logo=heroku)](https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/)
-[![Status](https://img.shields.io/badge/Status-Active-success.svg?style=for-the-badge)](https://github.com/noahmott/mcp_wowconomics_server)
-
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
-[![FastMCP](https://img.shields.io/badge/FastMCP-2.10.6-FF6B6B.svg?style=for-the-badge&logo=fastapi&logoColor=white)](https://github.com/jlowin/fastmcp)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![Battle.net](https://img.shields.io/badge/Battle.net_API-v1-00AEFF.svg?style=for-the-badge&logo=battle.net&logoColor=white)](https://develop.battle.net)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
+[![PostgreSQL](https://img.shields.io/badge/postgresql-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Heroku](https://img.shields.io/badge/heroku-deployed-430098?style=for-the-badge&logo=heroku&logoColor=white)](https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/)
+[![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 **A research-grade Model Context Protocol server for analyzing World of Warcraft's virtual economy**
 
@@ -21,15 +17,10 @@
 
 <div align="center">
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.116.1-009688.svg?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
-[![Pandas](https://img.shields.io/badge/pandas-2.3.0-150458.svg?style=flat-square&logo=pandas)](https://pandas.pydata.org)
-[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-D71F00.svg?style=flat-square)](https://www.sqlalchemy.org)
-[![Redis](https://img.shields.io/badge/Redis-6.2-DC382D.svg?style=flat-square&logo=redis)](https://redis.io)
-[![asyncpg](https://img.shields.io/badge/asyncpg-0.30-4B8BBE.svg?style=flat-square)](https://github.com/MagicStack/asyncpg)
-
-[![Research](https://img.shields.io/badge/Research-Virtual_Economics-orange.svg?style=flat-square)](https://github.com/noahmott/mcp_wowconomics_server)
-[![Data Analysis](https://img.shields.io/badge/Analysis-Time_Series-green.svg?style=flat-square)](https://github.com/noahmott/mcp_wowconomics_server)
-[![Market Data](https://img.shields.io/badge/Data-Real_Time-red.svg?style=flat-square)](https://github.com/noahmott/mcp_wowconomics_server)
+[![FastAPI](https://img.shields.io/badge/fastapi-0.116.1-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
+[![Pandas](https://img.shields.io/badge/pandas-2.3.0-150458?style=flat-square&logo=pandas&logoColor=white)](https://pandas.pydata.org)
+[![Redis](https://img.shields.io/badge/redis-6.2.0-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
+[![SQLAlchemy](https://img.shields.io/badge/sqlalchemy-2.0.32-FCA121?style=flat-square)](https://www.sqlalchemy.org)
 
 [Overview](#-overview) • [Research Applications](#-research-applications) • [Methodology](#-methodology) • [Tools](#-analysis-tools) • [Data](#-data-collection)
 
