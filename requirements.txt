@@ -23,6 +23,7 @@ supabase>=2.14.0
 pandas>=2.2.0
 numpy<2.0,>=1.23
 plotly>=6.0.0
+kaleido>=0.2.1
 Pillow==10.4.0
 
 # Configuration
