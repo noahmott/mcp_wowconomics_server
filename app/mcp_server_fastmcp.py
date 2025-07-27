@@ -460,6 +460,90 @@ async def compare_member_performance(
         return {"error": f"Comparison failed: {str(e)}"}
 
 @mcp.tool()
+async def get_classic_realm_id(
+    realm: str,
+    game_version: str = "classic"
+) -> Dict[str, Any]:
+    """
+    Get the connected realm ID for a Classic realm
+    
+    Args:
+        realm: Server realm name
+        game_version: WoW version ('classic' or 'classic-era')
+    
+    Returns:
+        Realm information including connected realm ID
+    """
+    try:
+        logger.info(f"Looking up realm ID for {realm} ({game_version})")
+        
+        # Known Classic realm IDs (hardcoded fallback)
+        KNOWN_CLASSIC_REALMS = {
+            "mankrik": 4384,
+            "faerlina": 4408,
+            "benediction": 4728,
+            "grobbulus": 4647,
+            "whitemane": 4395,
+            "pagle": 4701,
+            "westfall": 4669,
+            "old-blanchy": 4372
+        }
+        
+        # First, check if we have a known ID
+        realm_lower = realm.lower()
+        if realm_lower in KNOWN_CLASSIC_REALMS:
+            logger.info(f"Using known realm ID for {realm}: {KNOWN_CLASSIC_REALMS[realm_lower]}")
+            return {
+                "success": True,
+                "realm": realm,
+                "connected_realm_id": KNOWN_CLASSIC_REALMS[realm_lower],
+                "source": "hardcoded",
+                "message": f"Found hardcoded ID for {realm}"
+            }
+        
+        # Try to get realm info from API
+        async with BlizzardAPIClient(game_version=game_version) as client:
+            try:
+                realm_info = await client._get_realm_info(realm)
+                connected_realm = realm_info.get('connected_realm', {})
+                
+                if isinstance(connected_realm, dict) and 'id' in connected_realm:
+                    realm_id = connected_realm['id']
+                elif isinstance(connected_realm, int):
+                    realm_id = connected_realm
+                else:
+                    # Try to extract ID from href if available
+                    href = connected_realm.get('href', '') if isinstance(connected_realm, dict) else ''
+                    if '/connected-realm/' in href:
+                        realm_id = int(href.split('/connected-realm/')[-1].split('?')[0])
+                    else:
+                        return {
+                            "success": False,
+                            "error": f"Could not extract connected realm ID from response",
+                            "realm_info": realm_info
+                        }
+                
+                return {
+                    "success": True,
+                    "realm": realm,
+                    "connected_realm_id": realm_id,
+                    "source": "api",
+                    "realm_info": realm_info
+                }
+                
+            except Exception as e:
+                logger.error(f"Failed to get realm info from API: {str(e)}")
+                return {
+                    "success": False,
+                    "error": str(e),
+                    "suggestion": "Try using the hardcoded realm IDs or check if the realm name is correct"
+                }
+        
+    except Exception as e:
+        logger.error(f"Error looking up realm ID: {str(e)}")
+        return {"error": f"Realm lookup failed: {str(e)}"}
+
+@mcp.tool()
 async def get_auction_house_snapshot(
     realm: str,
     item_search: Optional[str] = None,
@@ -481,13 +565,42 @@ async def get_auction_house_snapshot(
     try:
         logger.info(f"Getting auction house data for realm {realm} ({game_version})")
         
-        async with BlizzardAPIClient(game_version=game_version) as client:
-            # Get connected realm ID from realm slug
-            realm_info = await client._get_realm_info(realm)
-            connected_realm_id = realm_info.get('connected_realm', {}).get('id')
+        # Known Classic realm IDs (hardcoded fallback)
+        KNOWN_CLASSIC_REALMS = {
+            "mankrik": 4384,
+            "faerlina": 4408,
+            "benediction": 4728,
+            "grobbulus": 4647,
+            "whitemane": 4395,
+            "pagle": 4701,
+            "westfall": 4669,
+            "old-blanchy": 4372
+        }
+        
+        connected_realm_id = None
+        
+        # First check if it's a known Classic realm
+        if game_version in ["classic", "classic-era"] and realm.lower() in KNOWN_CLASSIC_REALMS:
+            connected_realm_id = KNOWN_CLASSIC_REALMS[realm.lower()]
+            logger.info(f"Using known realm ID for {realm}: {connected_realm_id}")
+        else:
+            # Try to get from API
+            async with BlizzardAPIClient(game_version=game_version) as client:
+                try:
+                    realm_info = await client._get_realm_info(realm)
+                    connected_realm_id = realm_info.get('connected_realm', {}).get('id')
+                except Exception as e:
+                    logger.error(f"Failed to get realm info: {str(e)}")
+                    
+                    # Try hardcoded ID as last resort
+                    if realm.lower() in KNOWN_CLASSIC_REALMS:
+                        connected_realm_id = KNOWN_CLASSIC_REALMS[realm.lower()]
+                        logger.info(f"Using fallback realm ID for {realm}: {connected_realm_id}")
             
-            if not connected_realm_id:
-                return {"error": f"Could not find connected realm ID for realm {realm}"}
+        if not connected_realm_id:
+            return {"error": f"Could not find connected realm ID for realm {realm}"}
+        
+        async with BlizzardAPIClient(game_version=game_version) as client:
             
             # Get current auction data
             ah_data = await client.get_auction_house_data(connected_realm_id)
