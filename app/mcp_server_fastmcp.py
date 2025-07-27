@@ -33,6 +33,8 @@ from .services.market_history import MarketHistoryService
 from .services.redis_staging import RedisDataStagingService
 from .services.activity_logger import ActivityLogger, initialize_activity_logger
 from .services.supabase_streaming import initialize_streaming_service
+from .services.supabase_client import SupabaseRealTimeClient, ActivityLogEntry
+import uuid
 
 # Initialize service instances
 chart_generator = ChartGenerator()
@@ -44,6 +46,51 @@ market_history = MarketHistoryService()
 redis_client: Optional[aioredis.Redis] = None
 activity_logger: Optional[ActivityLogger] = None
 streaming_service = None
+supabase_client: Optional[SupabaseRealTimeClient] = None
+
+# Decorator for automatic Supabase logging
+def with_supabase_logging(func):
+    """Decorator to automatically log tool calls to Supabase"""
+    async def wrapper(*args, **kwargs):
+        start_time = datetime.now(timezone.utc)
+        tool_name = func.__name__
+        
+        # Log the request
+        await log_to_supabase(
+            tool_name=tool_name,
+            request_data=kwargs
+        )
+        
+        try:
+            # Call the actual function
+            result = await func(*args, **kwargs)
+            
+            # Log successful response
+            duration_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            await log_to_supabase(
+                tool_name=tool_name,
+                request_data=kwargs,
+                response_data={"success": True},
+                duration_ms=duration_ms
+            )
+            
+            return result
+            
+        except Exception as e:
+            # Log error
+            await log_to_supabase(
+                tool_name=tool_name,
+                request_data=kwargs,
+                error_message=str(e)
+            )
+            raise
+    
+    # Preserve function metadata for FastMCP
+    wrapper.__name__ = func.__name__
+    wrapper.__doc__ = func.__doc__
+    wrapper.__annotations__ = func.__annotations__
+    
+    return wrapper
 
 # Register WoW Guild tools using FastMCP decorators
 @mcp.tool()
@@ -74,17 +121,20 @@ async def analyze_guild_performance(
         # Initialize services if needed
         await get_or_initialize_services()
         
+        # Request data for logging
+        request_data = {
+            "realm": realm,
+            "guild_name": guild_name,
+            "analysis_type": analysis_type,
+            "game_version": game_version
+        }
+        
         # Log the request if activity logger is available
         if activity_logger:
             log_id = await activity_logger.log_request(
                 session_id="fastmcp-session",  # TODO: Get actual session ID from FastMCP
                 tool_name="analyze_guild_performance",
-                request_data={
-                    "realm": realm,
-                    "guild_name": guild_name,
-                    "analysis_type": analysis_type,
-                    "game_version": game_version
-                }
+                request_data=request_data
             )
         
         async with BlizzardAPIClient(game_version=game_version) as client:
@@ -109,15 +159,24 @@ async def analyze_guild_performance(
                 "timestamp": guild_data["fetch_timestamp"]
             }
             
+            duration_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+            
             # Log successful response
             if activity_logger and log_id:
-                duration_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
                 await activity_logger.log_response(
                     log_id=log_id,
                     response_data={"success": True, "guild_name": guild_name},
                     duration_ms=duration_ms,
                     success=True
                 )
+            
+            # Also log directly to Supabase
+            await log_to_supabase(
+                tool_name="analyze_guild_performance",
+                request_data=request_data,
+                response_data={"success": True, "guild_name": guild_name},
+                duration_ms=duration_ms
+            )
             
             return result
             
@@ -130,6 +189,14 @@ async def analyze_guild_performance(
                 tool_name="analyze_guild_performance",
                 metadata={"realm": realm, "guild_name": guild_name}
             )
+        
+        # Log error directly to Supabase
+        await log_to_supabase(
+            tool_name="analyze_guild_performance",
+            request_data=request_data,
+            error_message=f"API Error: {e.message}"
+        )
+        
         return {"error": f"API Error: {e.message}"}
     except Exception as e:
         logger.error(f"Unexpected error analyzing guild: {str(e)}")
@@ -140,6 +207,14 @@ async def analyze_guild_performance(
                 tool_name="analyze_guild_performance",
                 metadata={"realm": realm, "guild_name": guild_name}
             )
+        
+        # Log error directly to Supabase
+        await log_to_supabase(
+            tool_name="analyze_guild_performance",
+            request_data=request_data,
+            error_message=str(e)
+        )
+        
         return {"error": f"Analysis failed: {str(e)}"}
 
 @mcp.tool()
@@ -638,6 +713,64 @@ async def get_or_initialize_services():
         # Don't raise - allow server to continue without logging
 
 
+async def initialize_supabase():
+    """Initialize Supabase client for direct logging"""
+    global supabase_client
+    
+    try:
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_KEY")
+        
+        if supabase_url and supabase_key:
+            supabase_client = SupabaseRealTimeClient(supabase_url, supabase_key)
+            await supabase_client.initialize()
+            logger.info("Supabase client initialized for direct logging")
+            return True
+        else:
+            logger.warning("Supabase environment variables not set")
+            return False
+    except Exception as e:
+        logger.error(f"Failed to initialize Supabase: {e}")
+        return False
+
+
+async def log_to_supabase(tool_name: str, request_data: Dict[str, Any], 
+                         response_data: Dict[str, Any] = None, 
+                         error_message: str = None,
+                         duration_ms: float = None):
+    """Log activity directly to Supabase"""
+    global supabase_client
+    
+    try:
+        # Initialize Supabase if needed
+        if not supabase_client:
+            if not await initialize_supabase():
+                return
+        
+        # Create activity log entry
+        log_entry = ActivityLogEntry(
+            id=str(uuid.uuid4()),
+            session_id="fastmcp-direct",
+            activity_type="tool_call" if not error_message else "tool_error",
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            tool_name=tool_name,
+            request_data=request_data,
+            response_data=response_data,
+            error_message=error_message,
+            duration_ms=duration_ms,
+            metadata={
+                "source": "fastmcp",
+                "direct_logging": True
+            }
+        )
+        
+        # Stream to Supabase
+        await supabase_client.stream_activity_log(log_entry)
+        
+    except Exception as e:
+        logger.error(f"Failed to log to Supabase: {e}")
+
+
 def main():
     """Main entry point for FastMCP server"""
     try:
@@ -655,6 +788,9 @@ def main():
         logger.info(f"📊 Registered tools: {len(mcp._tool_manager._tools)}")
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
+        
+        # Initialize Supabase for direct logging
+        asyncio.run(initialize_supabase())
         
         # Run server using FastMCP 2.0 HTTP transport
         mcp.run(
