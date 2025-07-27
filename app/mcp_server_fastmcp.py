@@ -488,37 +488,6 @@ async def get_auction_house_snapshot(
             "message": "The Blizzard API client doesn't currently support auction house data retrieval"
         }
             
-            # Aggregate auction data
-            aggregated = auction_aggregator.aggregate_auction_data(ah_data['auctions'])
-            
-            # Filter results if item search provided
-            if item_search:
-                if item_search.isdigit():
-                    # Search by item ID
-                    item_id = int(item_search)
-                    if item_id in aggregated:
-                        aggregated = {item_id: aggregated[item_id]}
-                else:
-                    # TODO: Implement item name search
-                    logger.warning("Item name search not yet implemented")
-            
-            # Sort by total market value and limit results
-            sorted_items = sorted(
-                aggregated.items(),
-                key=lambda x: x[1]['total_market_value'],
-                reverse=True
-            )[:max_results]
-            
-            return {
-                "success": True,
-                "realm": realm,
-                "connected_realm_id": connected_realm_id,
-                "timestamp": datetime.utcnow().isoformat(),
-                "total_items": len(aggregated),
-                "items_returned": len(sorted_items),
-                "market_data": dict(sorted_items)
-            }
-            
     except Exception as e:
         logger.error(f"Error getting auction house data: {str(e)}")
         return {"error": f"Auction house data failed: {str(e)}"}
