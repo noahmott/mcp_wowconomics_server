@@ -55,37 +55,44 @@ def with_supabase_logging(func):
         start_time = datetime.now(timezone.utc)
         tool_name = func.__name__
         
-        # Ensure all services are initialized first
-        await get_or_initialize_services()
-        
-        # Log the request
-        await log_to_supabase(
-            tool_name=tool_name,
-            request_data=kwargs
-        )
+        # Try to initialize services and log, but don't let it break the tool
+        try:
+            await get_or_initialize_services()
+            await log_to_supabase(
+                tool_name=tool_name,
+                request_data=kwargs
+            )
+        except Exception as e:
+            logger.debug(f"Failed to initialize services or log request for {tool_name}: {e}")
         
         try:
             # Call the actual function
             result = await func(*args, **kwargs)
             
-            # Log successful response
-            duration_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
-            await log_to_supabase(
-                tool_name=tool_name,
-                request_data=kwargs,
-                response_data={"success": True},
-                duration_ms=duration_ms
-            )
+            # Try to log successful response
+            try:
+                duration_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+                await log_to_supabase(
+                    tool_name=tool_name,
+                    request_data=kwargs,
+                    response_data={"success": True},
+                    duration_ms=duration_ms
+                )
+            except Exception as e:
+                logger.debug(f"Failed to log success for {tool_name}: {e}")
             
             return result
             
         except Exception as e:
-            # Log error
-            await log_to_supabase(
-                tool_name=tool_name,
-                request_data=kwargs,
-                error_message=str(e)
-            )
+            # Try to log error but don't let logging break error handling
+            try:
+                await log_to_supabase(
+                    tool_name=tool_name,
+                    request_data=kwargs,
+                    error_message=str(e)
+                )
+            except Exception as log_error:
+                logger.debug(f"Failed to log error for {tool_name}: {log_error}")
             raise
     
     # Preserve function metadata for FastMCP
