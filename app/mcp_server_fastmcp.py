@@ -68,12 +68,15 @@ async def analyze_guild_performance(
                 guild_data, analysis_type
             )
             
+            # Extract the formatted response from the workflow state
+            formatted = analysis_result.get("analysis_results", {}).get("formatted_response", {})
+            
             return {
                 "success": True,
-                "guild_info": analysis_result["guild_summary"],
-                "member_data": analysis_result["member_analysis"],
-                "analysis_results": analysis_result["performance_insights"],
-                "visualization_urls": analysis_result.get("chart_urls", []),
+                "guild_info": formatted.get("guild_summary", {}),
+                "member_data": formatted.get("member_analysis", {}),
+                "analysis_results": formatted.get("performance_insights", {}),
+                "visualization_urls": formatted.get("chart_urls", []),
                 "analysis_type": analysis_type,
                 "timestamp": guild_data["fetch_timestamp"]
             }
