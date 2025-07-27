@@ -949,10 +949,11 @@ async def find_market_opportunities(
         return {"error": f"Market opportunity search failed: {str(e)}"}
 
 async def get_or_initialize_services():
-    """Lazy initialization of Redis, activity logger, and Supabase streaming"""
-    global redis_client, activity_logger, streaming_service
+    """Lazy initialization of Redis, activity logger, and Supabase"""
+    global redis_client, activity_logger, streaming_service, supabase_client
     
-    # Return if already initialized
+    # Return if Redis and activity logger already initialized
+    # (Supabase is optional and may not be available)
     if redis_client and activity_logger:
         return
     
@@ -986,17 +987,25 @@ async def get_or_initialize_services():
         activity_logger = await initialize_activity_logger(redis_client)
         logger.info("Activity logger initialized")
         
-        # Initialize Supabase streaming service (optional)
+        # Initialize Supabase (both direct client and streaming service)
         supabase_url = os.getenv("SUPABASE_URL")
         supabase_key = os.getenv("SUPABASE_KEY")
         
         if supabase_url and supabase_key:
             try:
+                # Initialize direct Supabase client
+                if not supabase_client:
+                    supabase_client = SupabaseRealTimeClient(supabase_url, supabase_key)
+                    await supabase_client.initialize()
+                    logger.info("Supabase direct client initialized successfully")
+                
+                # Initialize streaming service
                 streaming_service = await initialize_streaming_service(redis_client)
                 logger.info("Supabase streaming service initialized successfully")
             except Exception as e:
-                logger.error(f"Failed to initialize Supabase streaming service: {e}")
+                logger.error(f"Failed to initialize Supabase services: {e}")
                 streaming_service = None
+                supabase_client = None
         else:
             logger.warning("Supabase environment variables not set - logging to Supabase disabled")
             
@@ -1005,25 +1014,57 @@ async def get_or_initialize_services():
         # Don't raise - allow server to continue without logging
 
 
-async def initialize_supabase():
-    """Initialize Supabase client for direct logging"""
-    global supabase_client
-    
+
+
+@mcp.tool()
+async def test_supabase_connection() -> Dict[str, Any]:
+    """Test Supabase connection and logging functionality"""
     try:
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_KEY")
+        # Initialize services
+        await get_or_initialize_services()
         
-        if supabase_url and supabase_key:
-            supabase_client = SupabaseRealTimeClient(supabase_url, supabase_key)
-            await supabase_client.initialize()
-            logger.info("Supabase client initialized for direct logging")
-            return True
-        else:
-            logger.warning("Supabase environment variables not set")
-            return False
+        # Check if Supabase is available
+        if not supabase_client:
+            return {
+                "status": "error",
+                "message": "Supabase client not initialized",
+                "env_vars_present": {
+                    "SUPABASE_URL": bool(os.getenv("SUPABASE_URL")),
+                    "SUPABASE_KEY": bool(os.getenv("SUPABASE_KEY"))
+                }
+            }
+        
+        # Test logging a sample entry
+        test_entry = ActivityLogEntry(
+            id=str(uuid.uuid4()),
+            session_id="test-session",
+            activity_type="mcp_access",
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            tool_name="test_supabase_connection",
+            request_data={"test": True},
+            response_data={"test_status": "success"},
+            metadata={"source": "supabase_test"}
+        )
+        
+        success = await supabase_client.stream_activity_log(test_entry)
+        
+        return {
+            "status": "success" if success else "warning",
+            "message": "Test log entry sent successfully" if success else "Test log entry failed to send",
+            "supabase_client_initialized": True,
+            "env_vars_present": {
+                "SUPABASE_URL": bool(os.getenv("SUPABASE_URL")),
+                "SUPABASE_KEY": bool(os.getenv("SUPABASE_KEY"))
+            },
+            "test_entry_id": test_entry.id
+        }
+        
     except Exception as e:
-        logger.error(f"Failed to initialize Supabase: {e}")
-        return False
+        return {
+            "status": "error",
+            "message": f"Supabase test failed: {str(e)}",
+            "error_type": type(e).__name__
+        }
 
 
 async def log_to_supabase(tool_name: str, request_data: Dict[str, Any], 
@@ -1034,10 +1075,13 @@ async def log_to_supabase(tool_name: str, request_data: Dict[str, Any],
     global supabase_client
     
     try:
-        # Initialize Supabase if needed
+        # Initialize services if needed (consolidates all initialization)
+        await get_or_initialize_services()
+        
+        # Skip if Supabase is not available
         if not supabase_client:
-            if not await initialize_supabase():
-                return
+            logger.debug("Supabase client not available - skipping log")
+            return
         
         # Create activity log entry
         log_entry = ActivityLogEntry(
@@ -1057,10 +1101,15 @@ async def log_to_supabase(tool_name: str, request_data: Dict[str, Any],
         )
         
         # Stream to Supabase
-        await supabase_client.stream_activity_log(log_entry)
+        success = await supabase_client.stream_activity_log(log_entry)
+        if success:
+            logger.debug(f"Successfully logged {tool_name} to Supabase")
+        else:
+            logger.warning(f"Failed to log {tool_name} to Supabase - no error thrown")
         
     except Exception as e:
         logger.error(f"Failed to log to Supabase: {e}")
+        # Don't re-raise - logging failure shouldn't break the main functionality
 
 
 def main():
@@ -1081,10 +1130,8 @@ def main():
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
         
-        # Initialize Supabase for direct logging
-        asyncio.run(initialize_supabase())
-        
         # Run server using FastMCP 2.0 HTTP transport
+        # Supabase will be initialized lazily when first needed
         mcp.run(
             transport="http",
             host="0.0.0.0",
