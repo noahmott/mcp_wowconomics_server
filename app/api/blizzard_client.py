@@ -359,6 +359,12 @@ class BlizzardAPIClient:
             endpoint = f"/data/wow/realm/{realm_slug.lower()}"
             result = await self.make_request(endpoint)
             logger.info(f"Direct realm lookup succeeded for {realm_slug}: {result.get('name', 'unknown')}")
+            
+            # Check if we have connected_realm info for retail
+            if self.game_version == "retail" and not result.get('connected_realm'):
+                logger.info(f"Direct realm result missing connected_realm for retail, trying search")
+                raise BlizzardAPIError("Need connected realm search for retail", 404)
+            
             return result
         except BlizzardAPIError as e:
             logger.info(f"Direct realm endpoint failed for {realm_slug}, trying connected realm search")
