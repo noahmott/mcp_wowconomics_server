@@ -28,3 +28,9 @@ Pillow==10.4.0
 python-dotenv==1.1.0
 pydantic>=2.11.7
 pydantic-settings>=2.8.1
+
+# AI/ML (for guild analysis)
+openai>=1.0.0
+langchain==0.3.14
+langchain-openai==0.3.14
+langgraph==0.2.61
