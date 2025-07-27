@@ -91,6 +91,8 @@ simple_*.py
 # Test variations of MCP server
 *_mcp_server.py
 !analysis_mcp_server.py
+!mcp_server_fastmcp.py
+!mcp_server_redis.py
 
 # Historical data
 historical_*.json

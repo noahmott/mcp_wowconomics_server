@@ -34,7 +34,7 @@ Welcome to the comprehensive documentation for the WoW Guild Analytics project.
 ### For Developers
 - [Code Standards](./development/PEP8_COMPLIANCE.md)
 - [API Documentation](./api/)
-- [Modular Architecture](../wow_guild_analytics/README.md)
+- [Architecture Overview](./architecture/DESIGN_DOCUMENT.md)
 
 ### For Operations
 - [Docker Configuration](../config/docker/)

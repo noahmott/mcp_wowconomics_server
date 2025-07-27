@@ -20,7 +20,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app/ ./app/
-COPY wow_guild_analytics/ ./wow_guild_analytics/
 COPY *.py ./
 COPY .env.example ./
 COPY pyproject.toml ./

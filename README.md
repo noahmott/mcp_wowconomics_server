@@ -3,19 +3,23 @@
 
 ```
 guilddiscordbot/
-├── config/                 # Configuration files
-│   └── docker/            # Docker configuration
-├── scripts/               # Utility scripts
-│   ├── startup/          # Application startup scripts
-│   └── deployment/       # Deployment configurations
-├── docs/                  # Documentation
+├── app/                   # Main application directory
+│   ├── api/              # Blizzard API client and integrations
+│   ├── models/           # Database models
+│   ├── services/         # Business logic services
+│   ├── utils/            # Utility functions
+│   ├── visualization/    # Chart generation
+│   ├── workflows/        # Complex multi-step operations
+│   └── mcp_server_fastmcp.py  # Main MCP server
+├── config/               # Configuration files
+│   ├── docker/           # Docker configuration
+│   └── supabase/         # Database schema
+├── docs/                 # Documentation
 │   ├── api/              # API documentation
 │   ├── architecture/     # System design docs
-│   ├── development/      # Development guides
-│   └── deployment/       # Deployment guides
-├── app/                   # Main application (being migrated)
-├── wow_guild_analytics/   # Modular architecture
-└── tests/                # Test suite
+│   └── development/      # Development guides
+└── data/                 # Data storage
+    └── historical/       # Historical data cache
 ```
 
 ### 🚀 Quick Start
