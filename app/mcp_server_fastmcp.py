@@ -6,7 +6,9 @@ import logging
 from dotenv import load_dotenv
 from fastmcp import FastMCP
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+import asyncio
+import redis.asyncio as aioredis
 
 # Load environment variables
 load_dotenv()
@@ -29,12 +31,19 @@ from .workflows.guild_analysis import GuildAnalysisWorkflow
 from .services.auction_aggregator import AuctionAggregatorService
 from .services.market_history import MarketHistoryService
 from .services.redis_staging import RedisDataStagingService
+from .services.activity_logger import ActivityLogger, initialize_activity_logger
+from .services.supabase_streaming import initialize_streaming_service
 
 # Initialize service instances
 chart_generator = ChartGenerator()
 guild_workflow = GuildAnalysisWorkflow()
 auction_aggregator = AuctionAggregatorService()
 market_history = MarketHistoryService()
+
+# Global instances for Redis and logging
+redis_client: Optional[aioredis.Redis] = None
+activity_logger: Optional[ActivityLogger] = None
+streaming_service = None
 
 # Register WoW Guild tools using FastMCP decorators
 @mcp.tool()
@@ -56,8 +65,24 @@ async def analyze_guild_performance(
     Returns:
         Guild analysis results with performance metrics
     """
+    start_time = datetime.now(timezone.utc)
+    log_id = ""
+    
     try:
         logger.info(f"Analyzing guild {guild_name} on {realm} ({game_version})")
+        
+        # Log the request if activity logger is available
+        if activity_logger:
+            log_id = await activity_logger.log_request(
+                session_id="fastmcp-session",  # TODO: Get actual session ID from FastMCP
+                tool_name="analyze_guild_performance",
+                request_data={
+                    "realm": realm,
+                    "guild_name": guild_name,
+                    "analysis_type": analysis_type,
+                    "game_version": game_version
+                }
+            )
         
         async with BlizzardAPIClient(game_version=game_version) as client:
             # Get comprehensive guild data
@@ -71,7 +96,7 @@ async def analyze_guild_performance(
             # Extract the formatted response from the workflow state
             formatted = analysis_result.get("analysis_results", {}).get("formatted_response", {})
             
-            return {
+            result = {
                 "success": True,
                 "guild_info": formatted.get("guild_summary", {}),
                 "member_data": formatted.get("member_analysis", {}),
@@ -81,11 +106,37 @@ async def analyze_guild_performance(
                 "timestamp": guild_data["fetch_timestamp"]
             }
             
+            # Log successful response
+            if activity_logger and log_id:
+                duration_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+                await activity_logger.log_response(
+                    log_id=log_id,
+                    response_data={"success": True, "guild_name": guild_name},
+                    duration_ms=duration_ms,
+                    success=True
+                )
+            
+            return result
+            
     except BlizzardAPIError as e:
         logger.error(f"Blizzard API error: {e.message}")
+        if activity_logger:
+            await activity_logger.log_error(
+                session_id="fastmcp-session",
+                error_message=f"API Error: {e.message}",
+                tool_name="analyze_guild_performance",
+                metadata={"realm": realm, "guild_name": guild_name}
+            )
         return {"error": f"API Error: {e.message}"}
     except Exception as e:
         logger.error(f"Unexpected error analyzing guild: {str(e)}")
+        if activity_logger:
+            await activity_logger.log_error(
+                session_id="fastmcp-session",
+                error_message=str(e),
+                tool_name="analyze_guild_performance",
+                metadata={"realm": realm, "guild_name": guild_name}
+            )
         return {"error": f"Analysis failed: {str(e)}"}
 
 @mcp.tool()
@@ -527,6 +578,59 @@ async def find_market_opportunities(
         logger.error(f"Error finding market opportunities: {str(e)}")
         return {"error": f"Market opportunity search failed: {str(e)}"}
 
+async def initialize_services():
+    """Initialize Redis, activity logger, and Supabase streaming"""
+    global redis_client, activity_logger, streaming_service
+    
+    try:
+        # Initialize Redis connection
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        
+        # Configure SSL for Heroku Redis
+        if redis_url.startswith("rediss://"):
+            logger.info("Configuring Redis with TLS for Heroku")
+            redis_client = await aioredis.from_url(
+                redis_url,
+                encoding="utf-8",
+                decode_responses=False,
+                max_connections=50,
+                ssl_cert_reqs=None  # Disable SSL verification for self-signed certs
+            )
+        else:
+            redis_client = await aioredis.from_url(
+                redis_url,
+                encoding="utf-8",
+                decode_responses=False,
+                max_connections=50
+            )
+        
+        # Test Redis connection
+        await redis_client.ping()
+        logger.info(f"Connected to Redis at {redis_url}")
+        
+        # Initialize activity logger
+        activity_logger = await initialize_activity_logger(redis_client)
+        logger.info("Activity logger initialized")
+        
+        # Initialize Supabase streaming service (optional)
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_KEY")
+        
+        if supabase_url and supabase_key:
+            try:
+                streaming_service = await initialize_streaming_service(redis_client)
+                logger.info("Supabase streaming service initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize Supabase streaming service: {e}")
+                streaming_service = None
+        else:
+            logger.warning("Supabase environment variables not set - logging to Supabase disabled")
+            
+    except Exception as e:
+        logger.error(f"Failed to initialize services: {e}")
+        raise
+
+
 def main():
     """Main entry point for FastMCP server"""
     try:
@@ -543,6 +647,11 @@ def main():
         logger.info("🔧 Tools: Guild analysis, visualization, and auction house")
         logger.info(f"📊 Registered tools: {len(mcp._tool_manager._tools)}")
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
+        
+        # Initialize services in a new event loop
+        logger.info("📦 Initializing Redis and logging services...")
+        asyncio.run(initialize_services())
+        
         logger.info("✅ Starting server...")
         
         # Run server using FastMCP 2.0 HTTP transport
