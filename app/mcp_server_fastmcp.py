@@ -60,6 +60,18 @@ activity_logger: Optional[ActivityLogger] = None
 streaming_service = None
 supabase_client: Optional[SupabaseRealTimeClient] = None
 
+# Known Classic realm IDs (hardcoded for reliability)
+KNOWN_CLASSIC_REALMS = {
+    "mankrik": 4384,
+    "faerlina": 4408,
+    "benediction": 4728,
+    "grobbulus": 4647,
+    "whitemane": 4395,
+    "pagle": 4701,
+    "westfall": 4669,
+    "old-blanchy": 4372
+}
+
 # Decorator for automatic Supabase logging
 def with_supabase_logging(func):
     """Decorator to automatically log tool calls to Supabase"""
@@ -701,18 +713,6 @@ async def get_classic_realm_id(
     try:
         logger.info(f"Looking up realm ID for {realm} ({game_version})")
         
-        # Known Classic realm IDs (hardcoded fallback)
-        KNOWN_CLASSIC_REALMS = {
-            "mankrik": 4384,
-            "faerlina": 4408,
-            "benediction": 4728,
-            "grobbulus": 4647,
-            "whitemane": 4395,
-            "pagle": 4701,
-            "westfall": 4669,
-            "old-blanchy": 4372
-        }
-        
         # First, check if we have a known ID
         realm_lower = realm.lower()
         if realm_lower in KNOWN_CLASSIC_REALMS:
@@ -791,18 +791,6 @@ async def get_auction_house_snapshot(
     """
     try:
         logger.info(f"Getting auction house data for realm {realm} ({game_version})")
-        
-        # Known Classic realm IDs (hardcoded fallback)
-        KNOWN_CLASSIC_REALMS = {
-            "mankrik": 4384,
-            "faerlina": 4408,
-            "benediction": 4728,
-            "grobbulus": 4647,
-            "whitemane": 4395,
-            "pagle": 4701,
-            "westfall": 4669,
-            "old-blanchy": 4372
-        }
         
         connected_realm_id = None
         
@@ -1291,8 +1279,16 @@ async def find_market_opportunities(
         
         async with BlizzardAPIClient(game_version=game_version) as client:
             # Get connected realm ID
-            realm_info = await client._get_realm_info(realm)
-            connected_realm_id = realm_info.get('connected_realm', {}).get('id')
+            connected_realm_id = None
+            
+            # Check if it's a known Classic realm first
+            if game_version == "classic" and realm.lower() in KNOWN_CLASSIC_REALMS:
+                connected_realm_id = KNOWN_CLASSIC_REALMS[realm.lower()]
+                logger.info(f"Using known Classic realm ID for {realm}: {connected_realm_id}")
+            else:
+                # Try to get from API
+                realm_info = await client._get_realm_info(realm)
+                connected_realm_id = realm_info.get('connected_realm', {}).get('id')
             
             if not connected_realm_id:
                 return {"error": "Could not find connected realm ID"}
