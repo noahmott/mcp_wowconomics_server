@@ -10,13 +10,10 @@ Welcome to the comprehensive documentation for the WoW Guild Analytics project.
 
 ### 📁 [API Documentation](./api/)
 - [MCP_USAGE.md](./api/MCP_USAGE.md) - Model Context Protocol (MCP) server usage guide
-- [MCP_ENDPOINT_TEST_RESULTS.md](./MCP_ENDPOINT_TEST_RESULTS.md) - MCP endpoint testing results
 - API endpoints and integration guides
 
 ### 📁 [Development](./development/)
 - [PEP8_COMPLIANCE.md](./development/PEP8_COMPLIANCE.md) - Code quality and PEP 8 compliance report
-- [FILE_ORGANIZATION.md](./development/FILE_ORGANIZATION.md) - Repository structure analysis
-- [REORGANIZATION_PLAN.md](./development/REORGANIZATION_PLAN.md) - File organization improvement plan
 - Development setup and guidelines
 
 ### 📁 [Deployment](./deployment/)
@@ -26,24 +23,22 @@ Welcome to the comprehensive documentation for the WoW Guild Analytics project.
 
 ### 📁 [Historical](.)
 - [CLASSIC_API_NOTES.md](./CLASSIC_API_NOTES.md) - Classic WoW API implementation notes
-- [PERSISTENCE_TEST_RESULTS.md](./PERSISTENCE_TEST_RESULTS.md) - Database persistence testing
 
 ## Quick Links
 
 ### Getting Started
-1. [Development Setup](./development/SETUP_GUIDE.md)
-2. [MCP Usage Guide](./api/MCP_USAGE.md)
-3. [Architecture Overview](./architecture/DESIGN_DOCUMENT.md)
+1. [MCP Usage Guide](./api/MCP_USAGE.md)
+2. [Architecture Overview](./architecture/DESIGN_DOCUMENT.md)
+3. [Code Standards](./development/PEP8_COMPLIANCE.md)
 
 ### For Developers
 - [Code Standards](./development/PEP8_COMPLIANCE.md)
-- [Repository Structure](./development/FILE_ORGANIZATION.md)
 - [API Documentation](./api/)
+- [Modular Architecture](../wow_guild_analytics/README.md)
 
 ### For Operations
-- [Docker Deployment](./deployment/DOCKER_GUIDE.md)
+- [Docker Configuration](../config/docker/)
 - [Environment Configuration](../README.md#configuration)
-- [Monitoring and Logs](./deployment/MONITORING.md)
 
 ## Project Overview
 
@@ -79,6 +74,6 @@ When adding new documentation:
 
 ## Need Help?
 
-- Check the [FAQ](./FAQ.md)
-- Review [Common Issues](./TROUBLESHOOTING.md)
+- Review the main [README](../README.md)
+- Check [Classic API Notes](./CLASSIC_API_NOTES.md) for WoW Classic issues
 - Open an issue on GitHub

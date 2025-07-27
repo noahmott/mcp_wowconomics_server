@@ -24,11 +24,8 @@ guilddiscordbot/
 # Using Docker
 docker-compose -f config/docker/docker-compose.yml up
 
-# Local development (Windows)
-scripts\startup\scripts\startup\start_server.bat
-
-# Local development (Linux/Mac)
-./scripts/startup/startup.sh
+# Local development
+python app/mcp_server_fastmcp.py
 ```
 
 ### 📖 Documentation
@@ -36,7 +33,6 @@ scripts\startup\scripts\startup\start_server.bat
 - [Architecture Overview](docs/architecture/DESIGN_DOCUMENT.md)
 - [MCP Usage Guide](docs/api/MCP_USAGE.md)
 - [Development Standards](docs/development/PEP8_COMPLIANCE.md)
-- [File Organization](docs/development/FILE_ORGANIZATION.md)
 
 <div align="center">
   
