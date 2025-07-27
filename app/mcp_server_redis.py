@@ -681,6 +681,29 @@ def setup_mcp_server(app: FastAPI):
                         }
                     }
             
+            elif method == "prompts/list":
+                # Return empty prompts list
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {"prompts": []}
+                }
+            
+            elif method == "resources/list":
+                # Return empty resources list
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {"resources": []}
+                }
+            
+            elif method == "notifications/initialized":
+                # Client notification that initialization is complete
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {}
+                }
+            
             else:
                 return {
                     "jsonrpc": "2.0",
