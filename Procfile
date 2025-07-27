@@ -1,1 +1,1 @@
-web: python -m app.mcp_server_fastmcp
+web: python -m app.main_redis
