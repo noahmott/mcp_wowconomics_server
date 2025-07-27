@@ -94,6 +94,7 @@ def with_supabase_logging(func):
 
 # Register WoW Guild tools using FastMCP decorators
 @mcp.tool()
+@with_supabase_logging
 async def analyze_guild_performance(
     realm: str,
     guild_name: str,
@@ -170,13 +171,6 @@ async def analyze_guild_performance(
                     success=True
                 )
             
-            # Also log directly to Supabase
-            await log_to_supabase(
-                tool_name="analyze_guild_performance",
-                request_data=request_data,
-                response_data={"success": True, "guild_name": guild_name},
-                duration_ms=duration_ms
-            )
             
             return result
             
@@ -190,12 +184,6 @@ async def analyze_guild_performance(
                 metadata={"realm": realm, "guild_name": guild_name}
             )
         
-        # Log error directly to Supabase
-        await log_to_supabase(
-            tool_name="analyze_guild_performance",
-            request_data=request_data,
-            error_message=f"API Error: {e.message}"
-        )
         
         return {"error": f"API Error: {e.message}"}
     except Exception as e:
@@ -208,16 +196,11 @@ async def analyze_guild_performance(
                 metadata={"realm": realm, "guild_name": guild_name}
             )
         
-        # Log error directly to Supabase
-        await log_to_supabase(
-            tool_name="analyze_guild_performance",
-            request_data=request_data,
-            error_message=str(e)
-        )
         
         return {"error": f"Analysis failed: {str(e)}"}
 
 @mcp.tool()
+@with_supabase_logging
 async def get_guild_member_list(
     realm: str,
     guild_name: str,
@@ -297,6 +280,7 @@ async def get_guild_member_list(
         return {"error": f"Member list failed: {str(e)}"}
 
 @mcp.tool()
+@with_supabase_logging
 async def analyze_member_performance(
     realm: str,
     character_name: str,
@@ -366,6 +350,7 @@ async def analyze_member_performance(
         return {"error": f"Member analysis failed: {str(e)}"}
 
 @mcp.tool()
+@with_supabase_logging
 async def generate_raid_progress_chart(
     realm: str,
     guild_name: str,
@@ -405,6 +390,7 @@ async def generate_raid_progress_chart(
         return f"Error: Chart generation failed: {str(e)}"
 
 @mcp.tool()
+@with_supabase_logging
 async def compare_member_performance(
     realm: str,
     guild_name: str,
@@ -460,6 +446,7 @@ async def compare_member_performance(
         return {"error": f"Comparison failed: {str(e)}"}
 
 @mcp.tool()
+@with_supabase_logging
 async def lookup_item_details(
     item_id: int,
     game_version: str = "retail"
@@ -520,6 +507,7 @@ async def lookup_item_details(
         }
 
 @mcp.tool()
+@with_supabase_logging
 async def lookup_multiple_items(
     item_ids: List[int],
     game_version: str = "retail"
@@ -579,6 +567,7 @@ async def lookup_multiple_items(
         }
 
 @mcp.tool()
+@with_supabase_logging
 async def get_classic_realm_id(
     realm: str,
     game_version: str = "classic"
@@ -663,6 +652,7 @@ async def get_classic_realm_id(
         return {"error": f"Realm lookup failed: {str(e)}"}
 
 @mcp.tool()
+@with_supabase_logging
 async def get_auction_house_snapshot(
     realm: str,
     item_search: Optional[str] = None,
@@ -766,6 +756,7 @@ async def get_auction_house_snapshot(
         return {"error": f"Auction house data failed: {str(e)}"}
 
 @mcp.tool()
+@with_supabase_logging
 async def analyze_item_market_history(
     realm: str,
     item_id: int,
@@ -816,6 +807,7 @@ async def analyze_item_market_history(
         return {"error": f"Market analysis failed: {str(e)}"}
 
 @mcp.tool()
+@with_supabase_logging
 async def test_classic_auction_house() -> Dict[str, Any]:
     """
     Test Classic auction house with known working realm IDs
@@ -873,6 +865,7 @@ async def test_classic_auction_house() -> Dict[str, Any]:
         return {"error": f"Test failed: {str(e)}"}
 
 @mcp.tool()
+@with_supabase_logging
 async def find_market_opportunities(
     realm: str,
     min_profit_margin: float = 20.0,
@@ -1017,6 +1010,7 @@ async def get_or_initialize_services():
 
 
 @mcp.tool()
+@with_supabase_logging
 async def test_supabase_connection() -> Dict[str, Any]:
     """Test Supabase connection and logging functionality"""
     try:
@@ -1112,6 +1106,16 @@ async def log_to_supabase(tool_name: str, request_data: Dict[str, Any],
         # Don't re-raise - logging failure shouldn't break the main functionality
 
 
+async def initialize_all_services():
+    """Initialize all services including Supabase during startup"""
+    try:
+        await get_or_initialize_services()
+        logger.info("All services initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize services: {e}")
+        # Don't fail startup - allow server to continue
+
+
 def main():
     """Main entry point for FastMCP server"""
     try:
@@ -1130,8 +1134,10 @@ def main():
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
         
+        # Initialize all services including Supabase during startup
+        asyncio.run(initialize_all_services())
+        
         # Run server using FastMCP 2.0 HTTP transport
-        # Supabase will be initialized lazily when first needed
         mcp.run(
             transport="http",
             host="0.0.0.0",
