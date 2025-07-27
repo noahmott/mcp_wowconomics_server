@@ -481,19 +481,12 @@ async def get_auction_house_snapshot(
     try:
         logger.info(f"Getting auction house data for realm {realm} ({game_version})")
         
-        async with BlizzardAPIClient(game_version=game_version) as client:
-            # Get connected realm ID
-            realm_info = await client._get_realm_info(realm)
-            connected_realm_id = realm_info.get('connected_realm', {}).get('id')
-            
-            if not connected_realm_id:
-                return {"error": "Could not find connected realm ID"}
-            
-            # Get auction house data
-            ah_data = await client.get_auction_house_data(connected_realm_id)
-            
-            if not ah_data or 'auctions' not in ah_data:
-                return {"error": "No auction data available"}
+        # Auction house functionality not yet implemented
+        logger.warning(f"Auction house API not implemented for realm {realm}")
+        return {
+            "error": "Auction house functionality is not yet implemented",
+            "message": "The Blizzard API client doesn't currently support auction house data retrieval"
+        }
             
             # Aggregate auction data
             aggregated = auction_aggregator.aggregate_auction_data(ah_data['auctions'])

@@ -331,6 +331,17 @@ class BlizzardAPIClient:
         endpoint = f"/profile/wow/character/{realm.lower()}/{character_name.lower()}/mythic-keystone-profile"
         return await self.make_request(endpoint)
     
+    # Realm and Auction House methods
+    async def _get_realm_info(self, realm_slug: str) -> Dict[str, Any]:
+        """Get realm information including connected realm ID"""
+        endpoint = f"/data/wow/realm/{realm_slug.lower()}"
+        return await self.make_request(endpoint)
+    
+    async def get_auction_house_data(self, connected_realm_id: int) -> Dict[str, Any]:
+        """Get auction house data for a connected realm"""
+        endpoint = f"/data/wow/connected-realm/{connected_realm_id}/auctions"
+        return await self.make_request(endpoint)
+    
     # Comprehensive guild analysis
     async def get_comprehensive_guild_data(self, realm: str, guild_name: str) -> Dict[str, Any]:
         """Get comprehensive guild data including roster and member details"""
