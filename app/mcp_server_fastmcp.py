@@ -55,6 +55,9 @@ def with_supabase_logging(func):
         start_time = datetime.now(timezone.utc)
         tool_name = func.__name__
         
+        # Ensure all services are initialized first
+        await get_or_initialize_services()
+        
         # Log the request
         await log_to_supabase(
             tool_name=tool_name,
@@ -1106,15 +1109,6 @@ async def log_to_supabase(tool_name: str, request_data: Dict[str, Any],
         # Don't re-raise - logging failure shouldn't break the main functionality
 
 
-async def initialize_all_services():
-    """Initialize all services including Supabase during startup"""
-    try:
-        await get_or_initialize_services()
-        logger.info("All services initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize services: {e}")
-        # Don't fail startup - allow server to continue
-
 
 def main():
     """Main entry point for FastMCP server"""
@@ -1134,10 +1128,8 @@ def main():
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
         
-        # Initialize all services including Supabase during startup
-        asyncio.run(initialize_all_services())
-        
         # Run server using FastMCP 2.0 HTTP transport
+        # Services will initialize on first tool call within FastMCP's event loop
         mcp.run(
             transport="http",
             host="0.0.0.0",
