@@ -693,6 +693,30 @@ def setup_mcp_server(app: FastAPI):
         
         logger.info("MCP server setup completed with Redis backend")
         
+        # Add GET endpoint for MCP discovery
+        @app.get("/mcp")
+        async def mcp_get():
+            """Handle MCP GET requests for discovery"""
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "serverInfo": {
+                        "name": "wow-guild-mcp",
+                        "version": "2.0.0"
+                    },
+                    "capabilities": {
+                        "tools": list(mcp_server.mcp.tools.keys())
+                    }
+                }
+            }
+        
+        # Add DELETE endpoint for MCP cleanup
+        @app.delete("/mcp")
+        async def mcp_delete():
+            """Handle MCP DELETE requests"""
+            return {"status": "ok"}
+        
         return mcp_server
         
     except Exception as e:
