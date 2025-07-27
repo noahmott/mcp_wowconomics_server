@@ -51,7 +51,10 @@ supabase_client: Optional[SupabaseRealTimeClient] = None
 # Decorator for automatic Supabase logging
 def with_supabase_logging(func):
     """Decorator to automatically log tool calls to Supabase"""
-    async def wrapper(*args, **kwargs):
+    import functools
+    
+    @functools.wraps(func)
+    async def wrapper(**kwargs):
         start_time = datetime.now(timezone.utc)
         tool_name = func.__name__
         
@@ -67,7 +70,7 @@ def with_supabase_logging(func):
         
         try:
             # Call the actual function
-            result = await func(*args, **kwargs)
+            result = await func(**kwargs)
             
             # Try to log successful response
             try:
@@ -94,11 +97,6 @@ def with_supabase_logging(func):
             except Exception as log_error:
                 logger.debug(f"Failed to log error for {tool_name}: {log_error}")
             raise
-    
-    # Preserve function metadata for FastMCP
-    wrapper.__name__ = func.__name__
-    wrapper.__doc__ = func.__doc__
-    wrapper.__annotations__ = func.__annotations__
     
     return wrapper
 
