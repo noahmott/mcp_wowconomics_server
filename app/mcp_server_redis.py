@@ -507,7 +507,9 @@ def setup_mcp_server(app: FastAPI):
                                 "version": "2.0.0"
                             },
                             "capabilities": {
-                                "tools": {}
+                                "tools": {},
+                                "resources": {},
+                                "prompts": {}
                             }
                         }
                     },
@@ -517,16 +519,69 @@ def setup_mcp_server(app: FastAPI):
                 return response
             
             elif method == "tools/list":
-                tools = []
-                for name, func in mcp_server.mcp.tools.items():
-                    tools.append({
-                        "name": name,
-                        "description": func.__doc__.strip() if func.__doc__ else "",
+                tools = [
+                    {
+                        "name": "analyze_guild_performance",
+                        "description": "Analyze guild performance metrics and member activity",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "realm": {"type": "string", "description": "Server realm (e.g., 'stormrage', 'area-52')"},
+                                "guild_name": {"type": "string", "description": "Guild name"},
+                                "analysis_type": {"type": "string", "description": "Type of analysis ('comprehensive', 'basic', 'performance')", "default": "comprehensive"}
+                            },
+                            "required": ["realm", "guild_name"]
+                        }
+                    },
+                    {
+                        "name": "get_guild_member_list",
+                        "description": "Get detailed guild member list with sorting options",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "realm": {"type": "string", "description": "Server realm"},
+                                "guild_name": {"type": "string", "description": "Guild name"},
+                                "sort_by": {"type": "string", "description": "Sort criteria ('guild_rank', 'level', 'name', 'last_login')", "default": "guild_rank"},
+                                "limit": {"type": "integer", "description": "Maximum number of members to return", "default": 50},
+                                "quick_mode": {"type": "boolean", "description": "Use optimized fetching for large guilds", "default": false}
+                            },
+                            "required": ["realm", "guild_name"]
+                        }
+                    },
+                    {
+                        "name": "analyze_member_performance",
+                        "description": "Analyze individual member performance and progression",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "realm": {"type": "string", "description": "Server realm"},
+                                "character_name": {"type": "string", "description": "Character name to analyze"},
+                                "analysis_depth": {"type": "string", "description": "Analysis depth ('basic', 'standard', 'detailed')", "default": "standard"}
+                            },
+                            "required": ["realm", "character_name"]
+                        }
+                    },
+                    {
+                        "name": "check_guild_cache_status",
+                        "description": "Check cache status for specific guild data",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "realm": {"type": "string", "description": "Server realm (e.g., 'stormrage', 'area-52')"},
+                                "guild_name": {"type": "string", "description": "Guild name"}
+                            },
+                            "required": ["realm", "guild_name"]
+                        }
+                    },
+                    {
+                        "name": "get_cache_statistics",
+                        "description": "Get Redis cache statistics",
                         "inputSchema": {
                             "type": "object",
                             "properties": {}
                         }
-                    })
+                    }
+                ]
                 
                 return {
                     "jsonrpc": "2.0",
