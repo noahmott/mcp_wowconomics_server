@@ -44,6 +44,20 @@ python app/mcp_server_fastmcp.py
 
 ### Advanced Guild Management and Performance Analysis Tool
 
+<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_warrior.jpg" width="40" alt="Warrior">
+<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_paladin.jpg" width="40" alt="Paladin">
+<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_hunter.jpg" width="40" alt="Hunter">
+<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_rogue.jpg" width="40" alt="Rogue">
+<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_priest.jpg" width="40" alt="Priest">
+<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_shaman.jpg" width="40" alt="Shaman">
+<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_mage.jpg" width="40" alt="Mage">
+<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_warlock.jpg" width="40" alt="Warlock">
+<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_monk.jpg" width="40" alt="Monk">
+<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_druid.jpg" width="40" alt="Druid">
+<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_demonhunter.jpg" width="40" alt="Demon Hunter">
+<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_deathknight.jpg" width="40" alt="Death Knight">
+<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_evoker.jpg" width="40" alt="Evoker">
+
 [![Python](https://img.shields.io/badge/python-3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![FastMCP](https://img.shields.io/badge/FastMCP-2.0-FF6B6B?style=for-the-badge&logo=fastapi&logoColor=white)](https://github.com/jlowin/fastmcp)
 [![Battle.net](https://img.shields.io/badge/battle.net-API-00AEFF?style=for-the-badge&logo=battle.net&logoColor=white)](https://develop.battle.net)
@@ -102,6 +116,8 @@ This MCP server provides guild officers, leaders, and WoW community managers wit
 <td>
 
 ### Performance Analysis
+<img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_head_dragon_01.jpg" width="25" align="left">
+
 - **Guild Overview** - Comprehensive performance metrics with AI insights
 - **Member Tracking** - Individual character progression and statistics
 - **Raid Progress** - Visual charts of raid team advancement
@@ -111,6 +127,8 @@ This MCP server provides guild officers, leaders, and WoW community managers wit
 <td>
 
 ### Management Features
+<img src="https://wow.zamimg.com/images/wow/icons/large/achievement_guildperk_everybodysfriend.jpg" width="25" align="left">
+
 - **Member Roster** - Detailed guild member listings with sorting/filtering
 - **Activity Monitoring** - Real-time tracking of guild analytics usage
 - **Performance Charts** - Visual representations of guild and member data
@@ -122,6 +140,8 @@ This MCP server provides guild officers, leaders, and WoW community managers wit
 <td>
 
 ### Market Intelligence
+<img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_coin_01.jpg" width="25" align="left">
+
 - **Auction House Monitoring** - Current market snapshots and trends
 - **Profit Opportunities** - Market analysis for guild funding strategies
 - **Item Lookup** - Detailed item information and market values
@@ -131,6 +151,8 @@ This MCP server provides guild officers, leaders, and WoW community managers wit
 <td>
 
 ### Technical Features
+<img src="https://wow.zamimg.com/images/wow/icons/large/trade_engineering.jpg" width="25" align="left">
+
 - **Multi-Version Support** - Both Classic and Retail WoW compatibility
 - **Real-time Logging** - Supabase integration for activity tracking
 - **Redis Caching** - Optimized performance for frequent queries
@@ -173,6 +195,11 @@ graph LR
 
 ### 🏰 Guild Analytics Tools (7)
 
+<div align="center">
+<img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_tournaments_banner_human.jpg" width="30" alt="Alliance">
+<img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_tournaments_banner_orc.jpg" width="30" alt="Horde">
+</div>
+
 | Tool | Purpose | Output Format |
 |------|---------|---------------|
 | `analyze_guild_performance` | Comprehensive guild analysis with AI insights | Detailed performance report with recommendations |
@@ -183,6 +210,15 @@ graph LR
 | `test_supabase_connection` | Activity logging and monitoring | Connection status and usage analytics |
 
 ### 📈 Market Intelligence Tools (9)
+
+<div align="center">
+<img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_coin_01.jpg" width="30" alt="Gold">
+<img src="https://wow.zamimg.com/images/wow/icons/large/trade_alchemy.jpg" width="30" alt="Alchemy">
+<img src="https://wow.zamimg.com/images/wow/icons/large/trade_blacksmithing.jpg" width="30" alt="Blacksmithing">
+<img src="https://wow.zamimg.com/images/wow/icons/large/trade_engraving.jpg" width="30" alt="Enchanting">
+<img src="https://wow.zamimg.com/images/wow/icons/large/trade_herbalism.jpg" width="30" alt="Herbalism">
+<img src="https://wow.zamimg.com/images/wow/icons/large/trade_mining.jpg" width="30" alt="Mining">
+</div>
 
 | Tool | Purpose | Output Format |
 |------|---------|---------------|
@@ -402,6 +438,11 @@ print(f"Member Activity: {guild_analysis['activity_summary']}")
 
 ### Member Performance Tracking
 
+<div align="center">
+<img src="https://wow.zamimg.com/images/wow/icons/large/achievement_pvp_a_01.jpg" width="35" alt="PvP">
+<img src="https://wow.zamimg.com/images/wow/icons/large/pvecurrency-valor.jpg" width="35" alt="Valor">
+</div>
+
 ```python
 # Analyze individual member performance
 member_analysis = await analyze_member_performance(
@@ -417,6 +458,13 @@ print(f"Recent Achievements: {member_analysis['recent_achievements']}")
 ```
 
 ### Raid Progress Visualization
+
+<div align="center">
+<img src="https://wow.zamimg.com/images/wow/icons/large/inv_relics_hourglass.jpg" width="40" alt="Mythic+">
+<img src="https://wow.zamimg.com/images/wow/icons/large/spell_nature_thorns.jpg" width="40" alt="Tank">
+<img src="https://wow.zamimg.com/images/wow/icons/large/spell_holy_flashheal.jpg" width="40" alt="Healer">
+<img src="https://wow.zamimg.com/images/wow/icons/large/inv_sword_27.jpg" width="40" alt="DPS">
+</div>
 
 ```python
 # Generate visual raid progression charts
