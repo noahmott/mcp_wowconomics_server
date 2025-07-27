@@ -200,6 +200,20 @@ class BlizzardAPIClient:
                 namespace = f"static-classic-{self.region}"  # Classic uses static namespace for most data
             else:
                 namespace = f"static-classic-{self.region}"  # fallback for classic
+        elif self.game_version == "classic-era" or self.game_version == "classic1x":
+            # WoW Classic Era (vanilla) uses classic1x namespaces
+            if "/profile/" in endpoint:
+                namespace = f"profile-classic1x-{self.region}"
+            elif "/auctions" in endpoint or "/connected-realm/" in endpoint:
+                # Auction house and connected realm data needs dynamic namespace in Classic Era
+                namespace = f"dynamic-classic1x-{self.region}"
+            elif "/data/wow/realm/" in endpoint or "/data/wow/search/realm" in endpoint:
+                # Realm data and realm search also use dynamic namespace in Classic Era
+                namespace = f"dynamic-classic1x-{self.region}"
+            elif "/data/" in endpoint:
+                namespace = f"static-classic1x-{self.region}"  # Classic Era uses static namespace for most data
+            else:
+                namespace = f"static-classic1x-{self.region}"  # fallback for classic era
         else:
             # Regular WoW (Retail)
             if "/profile/" in endpoint:

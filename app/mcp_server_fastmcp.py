@@ -596,40 +596,44 @@ async def test_classic_auction_house() -> Dict[str, Any]:
         
         # Known Classic realm IDs from CLASSIC_API_NOTES.md
         test_realms = [
-            {"name": "Mankrik", "id": 4384},
-            {"name": "Faerlina", "id": 4408},
-            {"name": "Benediction", "id": 4728},
-            {"name": "Grobbulus", "id": 4647}
+            {"name": "Mankrik", "id": 4384, "version": "classic"},
+            {"name": "Faerlina", "id": 4408, "version": "classic"},
+            {"name": "Benediction", "id": 4728, "version": "classic"},
+            {"name": "Grobbulus", "id": 4647, "version": "classic"}
         ]
         
         results = {}
         
-        async with BlizzardAPIClient(game_version="classic") as client:
-            for realm in test_realms:
-                try:
-                    logger.info(f"Testing {realm['name']} (ID: {realm['id']})")
-                    ah_data = await client.get_auction_house_data(realm['id'])
-                    
-                    if ah_data and 'auctions' in ah_data:
-                        results[realm['name']] = {
-                            "success": True,
-                            "auction_count": len(ah_data['auctions']),
-                            "connected_realm_id": realm['id']
-                        }
-                    else:
-                        results[realm['name']] = {
+        # Test both classic and classic-era namespaces
+        for game_version in ["classic", "classic-era"]:
+            results[game_version] = {}
+            
+            async with BlizzardAPIClient(game_version=game_version) as client:
+                for realm in test_realms:
+                    try:
+                        logger.info(f"Testing {realm['name']} (ID: {realm['id']}) with {game_version}")
+                        ah_data = await client.get_auction_house_data(realm['id'])
+                        
+                        if ah_data and 'auctions' in ah_data:
+                            results[game_version][realm['name']] = {
+                                "success": True,
+                                "auction_count": len(ah_data['auctions']),
+                                "connected_realm_id": realm['id']
+                            }
+                        else:
+                            results[game_version][realm['name']] = {
+                                "success": False,
+                                "error": "No auction data returned"
+                            }
+                    except Exception as e:
+                        results[game_version][realm['name']] = {
                             "success": False,
-                            "error": "No auction data returned"
+                            "error": str(e)
                         }
-                except Exception as e:
-                    results[realm['name']] = {
-                        "success": False,
-                        "error": str(e)
-                    }
         
         return {
             "test_results": results,
-            "message": "Classic auction house connectivity test complete"
+            "message": "Classic auction house connectivity test complete for both namespaces"
         }
         
     except Exception as e:
