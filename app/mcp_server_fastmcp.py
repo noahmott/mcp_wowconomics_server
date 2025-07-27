@@ -41,7 +41,8 @@ market_history = MarketHistoryService()
 async def analyze_guild_performance(
     realm: str,
     guild_name: str,
-    analysis_type: str = "comprehensive"
+    analysis_type: str = "comprehensive",
+    game_version: str = "retail"
 ) -> Dict[str, Any]:
     """
     Analyze guild performance metrics and member activity
@@ -50,14 +51,15 @@ async def analyze_guild_performance(
         realm: Server realm (e.g., 'stormrage', 'area-52')
         guild_name: Guild name
         analysis_type: Type of analysis ('comprehensive', 'basic', 'performance')
+        game_version: WoW version ('retail' or 'classic')
     
     Returns:
         Guild analysis results with performance metrics
     """
     try:
-        logger.info(f"Analyzing guild {guild_name} on {realm}")
+        logger.info(f"Analyzing guild {guild_name} on {realm} ({game_version})")
         
-        async with BlizzardAPIClient() as client:
+        async with BlizzardAPIClient(game_version=game_version) as client:
             # Get comprehensive guild data
             guild_data = await client.get_comprehensive_guild_data(realm, guild_name)
             
@@ -89,7 +91,8 @@ async def get_guild_member_list(
     guild_name: str,
     sort_by: str = "guild_rank",
     limit: int = 50,
-    quick_mode: bool = False
+    quick_mode: bool = False,
+    game_version: str = "retail"
 ) -> Dict[str, Any]:
     """
     Get detailed guild member list with sorting options
@@ -100,14 +103,15 @@ async def get_guild_member_list(
         sort_by: Sort criteria ('guild_rank', 'level', 'name', 'last_login')
         limit: Maximum number of members to return
         quick_mode: Use optimized fetcher for faster results
+        game_version: WoW version ('retail' or 'classic')
     
     Returns:
         Detailed member list with metadata
     """
     try:
-        logger.info(f"Getting member list for {guild_name} on {realm}")
+        logger.info(f"Getting member list for {guild_name} on {realm} ({game_version})")
         
-        async with BlizzardAPIClient() as client:
+        async with BlizzardAPIClient(game_version=game_version) as client:
             if quick_mode:
                 # Use optimized fetcher for quick mode
                 fetcher = OptimizedGuildFetcher(client)
@@ -164,7 +168,8 @@ async def get_guild_member_list(
 async def analyze_member_performance(
     realm: str,
     character_name: str,
-    analysis_depth: str = "standard"
+    analysis_depth: str = "standard",
+    game_version: str = "retail"
 ) -> Dict[str, Any]:
     """
     Analyze individual member performance and progression
@@ -173,14 +178,15 @@ async def analyze_member_performance(
         realm: Server realm
         character_name: Character name to analyze
         analysis_depth: Analysis depth ('basic', 'standard', 'detailed')
+        game_version: WoW version ('retail' or 'classic')
     
     Returns:
         Comprehensive member analysis
     """
     try:
-        logger.info(f"Analyzing member {character_name} on {realm}")
+        logger.info(f"Analyzing member {character_name} on {realm} ({game_version})")
         
-        async with BlizzardAPIClient() as client:
+        async with BlizzardAPIClient(game_version=game_version) as client:
             # Get character profile
             char_profile = await client.get_character_profile(realm, character_name)
             
@@ -231,7 +237,8 @@ async def analyze_member_performance(
 async def generate_raid_progress_chart(
     realm: str,
     guild_name: str,
-    raid_tier: str = "current"
+    raid_tier: str = "current",
+    game_version: str = "retail"
 ) -> str:
     """
     Generate visual raid progression charts
@@ -240,14 +247,15 @@ async def generate_raid_progress_chart(
         realm: Server realm
         guild_name: Guild name
         raid_tier: Raid tier ('current', 'dragonflight', 'shadowlands')
+        game_version: WoW version ('retail' or 'classic')
     
     Returns:
         Base64 encoded image of the raid progression chart
     """
     try:
-        logger.info(f"Generating raid chart for {guild_name} on {realm}")
+        logger.info(f"Generating raid chart for {guild_name} on {realm} ({game_version})")
         
-        async with BlizzardAPIClient() as client:
+        async with BlizzardAPIClient(game_version=game_version) as client:
             guild_data = await client.get_comprehensive_guild_data(realm, guild_name)
             
             # Generate raid progression chart
@@ -269,7 +277,8 @@ async def compare_member_performance(
     realm: str,
     guild_name: str,
     member_names: List[str],
-    metric: str = "item_level"
+    metric: str = "item_level",
+    game_version: str = "retail"
 ) -> Dict[str, Any]:
     """
     Compare performance metrics across guild members
@@ -279,14 +288,15 @@ async def compare_member_performance(
         guild_name: Guild name
         member_names: List of character names to compare
         metric: Metric to compare ('item_level', 'achievement_points', 'guild_rank')
+        game_version: WoW version ('retail' or 'classic')
     
     Returns:
         Comparison results with chart data
     """
     try:
-        logger.info(f"Comparing members {member_names} in {guild_name}")
+        logger.info(f"Comparing members {member_names} in {guild_name} ({game_version})")
         
-        async with BlizzardAPIClient() as client:
+        async with BlizzardAPIClient(game_version=game_version) as client:
             # Get data for specific members
             comparison_data = []
             
@@ -321,7 +331,8 @@ async def compare_member_performance(
 async def get_auction_house_snapshot(
     realm: str,
     item_search: Optional[str] = None,
-    max_results: int = 100
+    max_results: int = 100,
+    game_version: str = "retail"
 ) -> Dict[str, Any]:
     """
     Get current auction house snapshot for a realm
@@ -330,14 +341,15 @@ async def get_auction_house_snapshot(
         realm: Server realm (e.g., 'stormrage', 'area-52')
         item_search: Optional item name or ID to search for
         max_results: Maximum number of items to return
+        game_version: WoW version ('retail' or 'classic')
     
     Returns:
         Current auction house data with market analysis
     """
     try:
-        logger.info(f"Getting auction house data for realm {realm}")
+        logger.info(f"Getting auction house data for realm {realm} ({game_version})")
         
-        async with BlizzardAPIClient() as client:
+        async with BlizzardAPIClient(game_version=game_version) as client:
             # Get connected realm ID
             realm_info = await client._get_realm_info(realm)
             connected_realm_id = realm_info.get('connected_realm', {}).get('id')
@@ -390,7 +402,8 @@ async def get_auction_house_snapshot(
 async def analyze_item_market_history(
     realm: str,
     item_id: int,
-    days: int = 7
+    days: int = 7,
+    game_version: str = "retail"
 ) -> Dict[str, Any]:
     """
     Analyze historical market trends for a specific item
@@ -399,6 +412,7 @@ async def analyze_item_market_history(
         realm: Server realm
         item_id: Item ID to analyze
         days: Number of days of history to analyze (default 7)
+        game_version: WoW version ('retail' or 'classic')
     
     Returns:
         Historical market analysis with trends and predictions
@@ -407,7 +421,7 @@ async def analyze_item_market_history(
         logger.info(f"Analyzing market history for item {item_id} on {realm}")
         
         # Get realm info
-        async with BlizzardAPIClient() as client:
+        async with BlizzardAPIClient(game_version=game_version) as client:
             realm_info = await client._get_realm_info(realm)
             connected_realm_id = realm_info.get('connected_realm', {}).get('id')
             
@@ -438,7 +452,8 @@ async def analyze_item_market_history(
 async def find_market_opportunities(
     realm: str,
     min_profit_margin: float = 20.0,
-    max_results: int = 20
+    max_results: int = 20,
+    game_version: str = "retail"
 ) -> Dict[str, Any]:
     """
     Find profitable market opportunities based on current auction data
@@ -447,14 +462,15 @@ async def find_market_opportunities(
         realm: Server realm
         min_profit_margin: Minimum profit margin percentage (default 20%)
         max_results: Maximum number of opportunities to return
+        game_version: WoW version ('retail' or 'classic')
     
     Returns:
         List of profitable market opportunities
     """
     try:
-        logger.info(f"Finding market opportunities on {realm}")
+        logger.info(f"Finding market opportunities on {realm} ({game_version})")
         
-        async with BlizzardAPIClient() as client:
+        async with BlizzardAPIClient(game_version=game_version) as client:
             # Get connected realm ID
             realm_info = await client._get_realm_info(realm)
             connected_realm_id = realm_info.get('connected_realm', {}).get('id')
