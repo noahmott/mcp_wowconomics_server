@@ -584,6 +584,59 @@ async def analyze_item_market_history(
         return {"error": f"Market analysis failed: {str(e)}"}
 
 @mcp.tool()
+async def test_classic_auction_house() -> Dict[str, Any]:
+    """
+    Test Classic auction house with known working realm IDs
+    
+    Returns:
+        Test results for known Classic realms
+    """
+    try:
+        logger.info("Testing Classic auction house with known realm IDs")
+        
+        # Known Classic realm IDs from CLASSIC_API_NOTES.md
+        test_realms = [
+            {"name": "Mankrik", "id": 4384},
+            {"name": "Faerlina", "id": 4408},
+            {"name": "Benediction", "id": 4728},
+            {"name": "Grobbulus", "id": 4647}
+        ]
+        
+        results = {}
+        
+        async with BlizzardAPIClient(game_version="classic") as client:
+            for realm in test_realms:
+                try:
+                    logger.info(f"Testing {realm['name']} (ID: {realm['id']})")
+                    ah_data = await client.get_auction_house_data(realm['id'])
+                    
+                    if ah_data and 'auctions' in ah_data:
+                        results[realm['name']] = {
+                            "success": True,
+                            "auction_count": len(ah_data['auctions']),
+                            "connected_realm_id": realm['id']
+                        }
+                    else:
+                        results[realm['name']] = {
+                            "success": False,
+                            "error": "No auction data returned"
+                        }
+                except Exception as e:
+                    results[realm['name']] = {
+                        "success": False,
+                        "error": str(e)
+                    }
+        
+        return {
+            "test_results": results,
+            "message": "Classic auction house connectivity test complete"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error testing Classic auction house: {str(e)}")
+        return {"error": f"Test failed: {str(e)}"}
+
+@mcp.tool()
 async def find_market_opportunities(
     realm: str,
     min_profit_margin: float = 20.0,

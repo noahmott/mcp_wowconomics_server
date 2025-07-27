@@ -343,7 +343,9 @@ class BlizzardAPIClient:
         try:
             # Try direct realm endpoint first
             endpoint = f"/data/wow/realm/{realm_slug.lower()}"
-            return await self.make_request(endpoint)
+            result = await self.make_request(endpoint)
+            logger.info(f"Direct realm lookup succeeded for {realm_slug}: {result.get('name', 'unknown')}")
+            return result
         except BlizzardAPIError as e:
             # If direct endpoint fails (common for Classic), try search endpoint
             if self.game_version == "classic" and e.status_code == 404:
@@ -355,13 +357,35 @@ class BlizzardAPIClient:
                 }
                 search_results = await self.make_request(search_endpoint, params)
                 
+                logger.info(f"Search returned {len(search_results.get('results', []))} results for {realm_slug}")
+                
                 # Find the realm in search results
                 if search_results and "results" in search_results:
                     for realm in search_results["results"]:
-                        if realm.get("data", {}).get("name", {}).get("en_US", "").lower() == realm_slug.lower():
-                            return realm["data"]
+                        realm_data = realm.get("data", {})
+                        realm_name = realm_data.get("name", {})
+                        if isinstance(realm_name, dict):
+                            realm_name = realm_name.get("en_US", "")
+                        elif isinstance(realm_name, str):
+                            pass  # Already a string
+                        else:
+                            realm_name = ""
+                            
+                        logger.info(f"Checking realm: {realm_name} vs {realm_slug}")
+                        
+                        if realm_name.lower() == realm_slug.lower():
+                            logger.info(f"Found matching realm: {realm_name} with connected_realm: {realm_data.get('connected_realm')}")
+                            return realm_data
                 
-                # If not found, raise original error
+                # If not found, log all realm names for debugging
+                all_realms = []
+                for realm in search_results.get("results", []):
+                    realm_name = realm.get("data", {}).get("name", {})
+                    if isinstance(realm_name, dict):
+                        realm_name = realm_name.get("en_US", "unknown")
+                    all_realms.append(realm_name)
+                logger.warning(f"Realm {realm_slug} not found. Available realms: {', '.join(all_realms[:10])}...")
+                
                 raise BlizzardAPIError(f"Realm {realm_slug} not found in search results", 404)
             else:
                 raise
