@@ -361,9 +361,56 @@ class BlizzardAPIClient:
             logger.info(f"Direct realm lookup succeeded for {realm_slug}: {result.get('name', 'unknown')}")
             return result
         except BlizzardAPIError as e:
-            # If direct endpoint fails (common for Classic), try search endpoint
+            logger.info(f"Direct realm endpoint failed for {realm_slug}, trying connected realm search")
+            
+            # Try connected realm search endpoint (works for both retail and classic)
+            search_endpoint = f"/data/wow/search/connected-realm"
+            params = {
+                f"realms.name.{self.locale}": realm_slug,
+                "_pageSize": 100
+            }
+            
+            try:
+                search_results = await self.make_request(search_endpoint, params)
+                
+                if search_results.get('results'):
+                    logger.info(f"Connected realm search returned {len(search_results['results'])} results")
+                    
+                    # Find the connected realm that contains our realm
+                    for connected_realm in search_results['results']:
+                        cr_data = connected_realm.get('data', {})
+                        realms = cr_data.get('realms', [])
+                        
+                        for realm in realms:
+                            realm_name = realm.get('name', {})
+                            if isinstance(realm_name, dict):
+                                realm_name = realm_name.get(self.locale, '')
+                            
+                            if (realm.get('slug', '').lower() == realm_slug.lower() or 
+                                realm_name.lower() == realm_slug.lower()):
+                                # Found it! Return a formatted response
+                                logger.info(f"Found realm {realm_slug} in connected realm {cr_data.get('id')}")
+                                return {
+                                    'name': realm_name,
+                                    'slug': realm.get('slug', realm_slug),
+                                    'connected_realm': {
+                                        'id': cr_data.get('id'),
+                                        'href': cr_data.get('href', '')
+                                    },
+                                    'id': realm.get('id'),
+                                    'region': cr_data.get('region', {}),
+                                    'population': cr_data.get('population', {}),
+                                    'type': realm.get('type', {})
+                                }
+                
+                logger.warning(f"No connected realm found for {realm_slug}")
+                
+            except Exception as search_error:
+                logger.error(f"Connected realm search failed: {str(search_error)}")
+            
+            # If that also fails and it's classic, try the old search endpoint
             if self.game_version == "classic" and e.status_code == 404:
-                logger.info(f"Direct realm endpoint failed for {realm_slug}, trying search endpoint")
+                logger.info(f"Trying classic realm search for {realm_slug}")
                 search_endpoint = f"/data/wow/search/realm"
                 params = {
                     "name.en_US": realm_slug,

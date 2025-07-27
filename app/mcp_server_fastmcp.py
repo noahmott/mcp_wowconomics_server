@@ -72,6 +72,29 @@ KNOWN_CLASSIC_REALMS = {
     "old-blanchy": 4372
 }
 
+# Known Retail realm IDs (based on common realms)
+KNOWN_RETAIL_REALMS = {
+    # US Realms
+    "area-52": 3676,
+    "stormrage": 60,
+    "illidan": 57,
+    "tichondrius": 11,
+    "mal'ganis": 3684,
+    "moon-guard": 3675,
+    "wyrmrest-accord": 1171,
+    "thrall": 3678,
+    "dalaran": 55,
+    "zul'jin": 61,
+    # EU Realms
+    "draenor": 1596,
+    "silvermoon": 1096,
+    "tarren-mill": 1303,
+    "kazzak": 1305,
+    "ragnaros": 1587,
+    "twisting-nether": 1615,
+    "argent-dawn": 1597
+}
+
 # Decorator for automatic Supabase logging
 def with_supabase_logging(func):
     """Decorator to automatically log tool calls to Supabase"""
