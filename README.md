@@ -73,16 +73,18 @@ python app/mcp_server_fastmcp.py
 
 ---
 
-## 🆕 What's New (July 2025)
+## 🆕 What's New (January 2025)
 
+- **Fixed Retail Realm Lookups**: Improved connected realm discovery using index endpoint instead of broken search API
+- **Realm Status Tool**: New `get_realm_status` tool for diagnosing realm connectivity and finding connected realm IDs
+- **Optimized API Performance**: Added in-memory caching for connected realm lookups to reduce API calls
 - **Redis Caching Integration**: Guild rosters cached for 15 days, reducing API calls and improving performance
 - **Economy Snapshot System**: Hourly auction house data capture with 30-day historical retention
 - **AI-Powered Guild Insights**: OpenAI GPT-4o-mini integration for intelligent guild analysis and recommendations
 - **Advanced Chart Generation**: Matplotlib/seaborn visualization for raid progress and member performance
 - **WoW Classic & Retail Support**: Full support for both Classic and Retail WoW with proper API namespaces
 - **Real-time Activity Tracking**: Supabase integration for comprehensive usage analytics and logging
-- **LangGraph Workflows**: Multi-step analysis chains for complex guild performance evaluations
-- **15 Comprehensive Tools**: 7 guild analytics + 8 market/economy tools including new snapshot features
+- **16 Comprehensive Tools**: 8 guild analytics + 8 market/economy tools including realm status diagnostics
 
 ## 📚 Overview
 
@@ -167,7 +169,7 @@ graph LR
 ## 🛠️ Complete Tool Reference
 
 <details>
-<summary><b>Click to view all 15 analytics tools</b></summary>
+<summary><b>Click to view all 16 analytics tools</b></summary>
 
 ### 🏰 Guild Analytics Tools (7)
 
@@ -180,7 +182,7 @@ graph LR
 | `compare_member_performance` | Side-by-side member comparisons | Comparative analysis with visualizations |
 | `test_supabase_connection` | Activity logging and monitoring | Connection status and usage analytics |
 
-### 📈 Market Intelligence Tools (8)
+### 📈 Market Intelligence Tools (9)
 
 | Tool | Purpose | Output Format |
 |------|---------|---------------|
@@ -200,6 +202,19 @@ graph LR
 | `test_classic_auction_house` | Classic WoW auction house testing | Diagnostic information |
 
 </details>
+
+## 🔧 Recent Improvements
+
+### Connected Realm API Fix (January 2025)
+
+The Blizzard API's connected realm search endpoint was found to be non-functional for retail realms. We've implemented a more robust solution:
+
+- **Index-based lookup**: Instead of using the broken search endpoint, we now fetch the connected realm index and search through it
+- **Known realm IDs**: Common retail realms have hardcoded connected realm IDs for faster lookups
+- **In-memory caching**: Connected realm lookups are cached to reduce API calls
+- **Better error handling**: More detailed logging to diagnose realm connection issues
+
+This fix ensures the auction house snapshot tools work properly for all retail realms including Area-52, Stormrage, Tichondrius, and others.
 
 ## 📊 Data Sources & Coverage
 
