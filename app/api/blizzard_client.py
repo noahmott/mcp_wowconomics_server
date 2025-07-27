@@ -193,8 +193,8 @@ class BlizzardAPIClient:
             elif "/auctions" in endpoint or "/connected-realm/" in endpoint:
                 # Auction house and connected realm data needs dynamic namespace in Classic
                 namespace = f"dynamic-classic-{self.region}"
-            elif "/data/wow/realm/" in endpoint:
-                # Realm data also uses dynamic namespace in Classic
+            elif "/data/wow/realm/" in endpoint or "/data/wow/search/realm" in endpoint:
+                # Realm data and realm search also use dynamic namespace in Classic
                 namespace = f"dynamic-classic-{self.region}"
             elif "/data/" in endpoint:
                 namespace = f"static-classic-{self.region}"  # Classic uses static namespace for most data
@@ -340,8 +340,31 @@ class BlizzardAPIClient:
     # Realm and Auction House methods
     async def _get_realm_info(self, realm_slug: str) -> Dict[str, Any]:
         """Get realm information including connected realm ID"""
-        endpoint = f"/data/wow/realm/{realm_slug.lower()}"
-        return await self.make_request(endpoint)
+        try:
+            # Try direct realm endpoint first
+            endpoint = f"/data/wow/realm/{realm_slug.lower()}"
+            return await self.make_request(endpoint)
+        except BlizzardAPIError as e:
+            # If direct endpoint fails (common for Classic), try search endpoint
+            if self.game_version == "classic" and e.status_code == 404:
+                logger.info(f"Direct realm endpoint failed for {realm_slug}, trying search endpoint")
+                search_endpoint = f"/data/wow/search/realm"
+                params = {
+                    "name.en_US": realm_slug,
+                    "_pageSize": 100
+                }
+                search_results = await self.make_request(search_endpoint, params)
+                
+                # Find the realm in search results
+                if search_results and "results" in search_results:
+                    for realm in search_results["results"]:
+                        if realm.get("data", {}).get("name", {}).get("en_US", "").lower() == realm_slug.lower():
+                            return realm["data"]
+                
+                # If not found, raise original error
+                raise BlizzardAPIError(f"Realm {realm_slug} not found in search results", 404)
+            else:
+                raise
     
     async def get_auction_house_data(self, connected_realm_id: int) -> Dict[str, Any]:
         """Get auction house data for a connected realm"""
