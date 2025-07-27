@@ -6,6 +6,7 @@ import logging
 from dotenv import load_dotenv
 from fastmcp import FastMCP
 from typing import Dict, Any, List, Optional
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -25,10 +26,15 @@ from .api.blizzard_client import BlizzardAPIClient, BlizzardAPIError
 from .api.guild_optimizations import OptimizedGuildFetcher
 from .visualization.chart_generator import ChartGenerator
 from .workflows.guild_analysis import GuildAnalysisWorkflow
+from .services.auction_aggregator import AuctionAggregatorService
+from .services.market_history import MarketHistoryService
+from .services.redis_staging import RedisDataStagingService
 
 # Initialize service instances
 chart_generator = ChartGenerator()
 guild_workflow = GuildAnalysisWorkflow()
+auction_aggregator = AuctionAggregatorService()
+market_history = MarketHistoryService()
 
 # Register WoW Guild tools using FastMCP decorators
 @mcp.tool()
@@ -311,6 +317,197 @@ async def compare_member_performance(
         logger.error(f"Error comparing members: {str(e)}")
         return {"error": f"Comparison failed: {str(e)}"}
 
+@mcp.tool()
+async def get_auction_house_snapshot(
+    realm: str,
+    item_search: Optional[str] = None,
+    max_results: int = 100
+) -> Dict[str, Any]:
+    """
+    Get current auction house snapshot for a realm
+    
+    Args:
+        realm: Server realm (e.g., 'stormrage', 'area-52')
+        item_search: Optional item name or ID to search for
+        max_results: Maximum number of items to return
+    
+    Returns:
+        Current auction house data with market analysis
+    """
+    try:
+        logger.info(f"Getting auction house data for realm {realm}")
+        
+        async with BlizzardAPIClient() as client:
+            # Get connected realm ID
+            realm_info = await client._get_realm_info(realm)
+            connected_realm_id = realm_info.get('connected_realm', {}).get('id')
+            
+            if not connected_realm_id:
+                return {"error": "Could not find connected realm ID"}
+            
+            # Get auction house data
+            ah_data = await client.get_auction_house_data(connected_realm_id)
+            
+            if not ah_data or 'auctions' not in ah_data:
+                return {"error": "No auction data available"}
+            
+            # Aggregate auction data
+            aggregated = auction_aggregator.aggregate_auction_data(ah_data['auctions'])
+            
+            # Filter results if item search provided
+            if item_search:
+                if item_search.isdigit():
+                    # Search by item ID
+                    item_id = int(item_search)
+                    if item_id in aggregated:
+                        aggregated = {item_id: aggregated[item_id]}
+                else:
+                    # TODO: Implement item name search
+                    logger.warning("Item name search not yet implemented")
+            
+            # Sort by total market value and limit results
+            sorted_items = sorted(
+                aggregated.items(),
+                key=lambda x: x[1]['total_market_value'],
+                reverse=True
+            )[:max_results]
+            
+            return {
+                "success": True,
+                "realm": realm,
+                "connected_realm_id": connected_realm_id,
+                "timestamp": datetime.utcnow().isoformat(),
+                "total_items": len(aggregated),
+                "items_returned": len(sorted_items),
+                "market_data": dict(sorted_items)
+            }
+            
+    except Exception as e:
+        logger.error(f"Error getting auction house data: {str(e)}")
+        return {"error": f"Auction house data failed: {str(e)}"}
+
+@mcp.tool()
+async def analyze_item_market_history(
+    realm: str,
+    item_id: int,
+    days: int = 7
+) -> Dict[str, Any]:
+    """
+    Analyze historical market trends for a specific item
+    
+    Args:
+        realm: Server realm
+        item_id: Item ID to analyze
+        days: Number of days of history to analyze (default 7)
+    
+    Returns:
+        Historical market analysis with trends and predictions
+    """
+    try:
+        logger.info(f"Analyzing market history for item {item_id} on {realm}")
+        
+        # Get realm info
+        async with BlizzardAPIClient() as client:
+            realm_info = await client._get_realm_info(realm)
+            connected_realm_id = realm_info.get('connected_realm', {}).get('id')
+            
+            if not connected_realm_id:
+                return {"error": "Could not find connected realm ID"}
+            
+            # TODO: Implement actual historical data retrieval
+            # For now, return mock analysis
+            return {
+                "success": True,
+                "realm": realm,
+                "item_id": item_id,
+                "analysis_period_days": days,
+                "market_trends": {
+                    "price_trend": "stable",
+                    "volume_trend": "increasing",
+                    "volatility": "low",
+                    "recommended_action": "hold"
+                },
+                "note": "Historical data retrieval not yet implemented"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error analyzing market history: {str(e)}")
+        return {"error": f"Market analysis failed: {str(e)}"}
+
+@mcp.tool()
+async def find_market_opportunities(
+    realm: str,
+    min_profit_margin: float = 20.0,
+    max_results: int = 20
+) -> Dict[str, Any]:
+    """
+    Find profitable market opportunities based on current auction data
+    
+    Args:
+        realm: Server realm
+        min_profit_margin: Minimum profit margin percentage (default 20%)
+        max_results: Maximum number of opportunities to return
+    
+    Returns:
+        List of profitable market opportunities
+    """
+    try:
+        logger.info(f"Finding market opportunities on {realm}")
+        
+        async with BlizzardAPIClient() as client:
+            # Get connected realm ID
+            realm_info = await client._get_realm_info(realm)
+            connected_realm_id = realm_info.get('connected_realm', {}).get('id')
+            
+            if not connected_realm_id:
+                return {"error": "Could not find connected realm ID"}
+            
+            # Get current auction data
+            ah_data = await client.get_auction_house_data(connected_realm_id)
+            
+            if not ah_data or 'auctions' not in ah_data:
+                return {"error": "No auction data available"}
+            
+            # Aggregate auction data
+            aggregated = auction_aggregator.aggregate_auction_data(ah_data['auctions'])
+            
+            # Find opportunities (items with high price variance)
+            opportunities = []
+            for item_id, data in aggregated.items():
+                if data['auction_count'] < 2:
+                    continue
+                    
+                # Calculate potential profit margin
+                price_range = data['max_price'] - data['min_price']
+                if data['min_price'] > 0:
+                    margin_pct = (price_range / data['min_price']) * 100
+                    
+                    if margin_pct >= min_profit_margin:
+                        opportunities.append({
+                            'item_id': item_id,
+                            'min_price': data['min_price'],
+                            'max_price': data['max_price'],
+                            'avg_price': data['avg_price'],
+                            'profit_margin_pct': round(margin_pct, 2),
+                            'total_quantity': data['total_quantity'],
+                            'auction_count': data['auction_count']
+                        })
+            
+            # Sort by profit margin
+            opportunities.sort(key=lambda x: x['profit_margin_pct'], reverse=True)
+            
+            return {
+                "success": True,
+                "realm": realm,
+                "opportunities_found": len(opportunities),
+                "opportunities": opportunities[:max_results],
+                "min_profit_margin_filter": min_profit_margin
+            }
+            
+    except Exception as e:
+        logger.error(f"Error finding market opportunities: {str(e)}")
+        return {"error": f"Market opportunity search failed: {str(e)}"}
+
 def main():
     """Main entry point for FastMCP server"""
     try:
@@ -324,7 +521,7 @@ def main():
         port = int(os.getenv("PORT", "8000"))
         
         logger.info("🚀 WoW Guild MCP Server with FastMCP 2.0")
-        logger.info("🔧 Tools: WoW guild analysis and visualization")
+        logger.info("🔧 Tools: Guild analysis, visualization, and auction house")
         logger.info(f"📊 Registered tools: {len(mcp._tool_manager._tools)}")
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
         logger.info("✅ Starting server...")
