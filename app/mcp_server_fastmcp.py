@@ -11,10 +11,11 @@ A comprehensive World of Warcraft guild analytics MCP server that provides:
 
 # Standard library imports
 import asyncio
+import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
 
 # Third-party imports
@@ -254,6 +255,60 @@ async def get_guild_member_list(
     try:
         logger.info(f"Getting member list for {guild_name} on {realm} ({game_version})")
         
+        # Initialize services if needed
+        await get_or_initialize_services()
+        
+        # Check Redis cache first
+        cache_key = f"guild_roster:{game_version}:{realm}:{guild_name.lower()}"
+        cached_data = None
+        cache_age_days = None
+        
+        if redis_client:
+            try:
+                # Get cached data
+                cached_json = await redis_client.get(cache_key)
+                if cached_json:
+                    cached_data = json.loads(cached_json)
+                    
+                    # Check cache age
+                    stored_date = datetime.fromisoformat(cached_data.get("cached_at", ""))
+                    cache_age = datetime.now(timezone.utc) - stored_date
+                    cache_age_days = cache_age.days
+                    
+                    # If cache is less than 15 days old, use it
+                    if cache_age_days < 15:
+                        logger.info(f"Using cached guild roster (age: {cache_age_days} days)")
+                        
+                        # Extract members and apply sorting/limit
+                        members = cached_data["members"][:limit]
+                        
+                        # Sort members based on criteria
+                        if sort_by == "guild_rank":
+                            members.sort(key=lambda x: x.get("guild_rank", 999))
+                        elif sort_by == "level":
+                            members.sort(key=lambda x: x.get("level", 0), reverse=True)
+                        elif sort_by == "name":
+                            members.sort(key=lambda x: x.get("name", "").lower())
+                        
+                        return {
+                            "success": True,
+                            "guild_name": guild_name,
+                            "realm": realm,
+                            "members": members,
+                            "members_returned": len(members),
+                            "total_members": cached_data["total_members"],
+                            "sorted_by": sort_by,
+                            "quick_mode": quick_mode,
+                            "guild_summary": cached_data.get("guild_info", {}),
+                            "from_cache": True,
+                            "cache_age_days": cache_age_days
+                        }
+                    else:
+                        logger.info(f"Cache is stale ({cache_age_days} days old), fetching fresh data")
+            except Exception as e:
+                logger.warning(f"Redis cache check failed: {e}")
+        
+        # Fetch fresh data from API
         async with BlizzardAPIClient(game_version=game_version) as client:
             if quick_mode:
                 # Use optimized fetcher for quick mode
@@ -261,11 +316,11 @@ async def get_guild_member_list(
                 roster_data = await fetcher.get_guild_roster_basic(realm, guild_name)
                 
                 # Format members for response
-                members_raw = roster_data["members"][:limit]
-                members = []
+                members_raw = roster_data["members"]
+                all_members = []
                 for m in members_raw:
                     char = m.get("character", {})
-                    members.append({
+                    all_members.append({
                         "name": char.get("name"),
                         "level": char.get("level"),
                         "character_class": char.get("playable_class", {}).get("name", "Unknown"),
@@ -276,9 +331,36 @@ async def get_guild_member_list(
             else:
                 # Full comprehensive data
                 guild_data = await client.get_comprehensive_guild_data(realm, guild_name)
-                members = guild_data.get("members_data", [])[:limit]
-                total_members = len(guild_data.get("members_data", []))
+                all_members = guild_data.get("members_data", [])
+                total_members = len(all_members)
                 guild_info = guild_data.get("guild_info", {})
+            
+            # Cache the fresh data in Redis with 15-day expiry
+            if redis_client:
+                try:
+                    cache_data = {
+                        "guild_name": guild_name,
+                        "realm": realm,
+                        "members": all_members,
+                        "total_members": total_members,
+                        "guild_info": guild_info,
+                        "cached_at": datetime.now(timezone.utc).isoformat(),
+                        "game_version": game_version
+                    }
+                    
+                    # Store with 15-day TTL (in seconds)
+                    ttl_seconds = 15 * 24 * 60 * 60  # 15 days
+                    await redis_client.setex(
+                        cache_key,
+                        ttl_seconds,
+                        json.dumps(cache_data)
+                    )
+                    logger.info(f"Cached guild roster for {guild_name} with 15-day TTL")
+                except Exception as e:
+                    logger.error(f"Failed to cache guild roster: {e}")
+            
+            # Apply limit and sorting for response
+            members = all_members[:limit]
             
             # Sort members based on criteria
             if sort_by == "guild_rank":
@@ -297,7 +379,9 @@ async def get_guild_member_list(
                 "total_members": total_members,
                 "sorted_by": sort_by,
                 "quick_mode": quick_mode,
-                "guild_summary": guild_info
+                "guild_summary": guild_info,
+                "from_cache": False,
+                "cache_age_days": 0
             }
             
     except BlizzardAPIError as e:
@@ -901,6 +985,286 @@ async def test_classic_auction_house() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error testing Classic auction house: {str(e)}")
         return {"error": f"Test failed: {str(e)}"}
+
+@mcp.tool()
+@with_supabase_logging
+async def capture_economy_snapshot(
+    realms: List[str],
+    region: str = "us",
+    game_version: str = "retail",
+    force_update: bool = False
+) -> Dict[str, Any]:
+    """
+    Capture hourly economy snapshots for specified realms
+    
+    Args:
+        realms: List of realm names to capture data for
+        region: Region (us, eu, etc.)
+        game_version: WoW version ('retail' or 'classic')
+        force_update: Force update even if recent snapshot exists
+    
+    Returns:
+        Snapshot capture results
+    """
+    try:
+        logger.info(f"Capturing economy snapshots for {len(realms)} realms")
+        
+        # Initialize services if needed
+        await get_or_initialize_services()
+        
+        if not redis_client:
+            return {
+                "error": "Redis not available for economy snapshots",
+                "message": "Redis connection required for storing economy data"
+            }
+        
+        results = {}
+        snapshots_created = 0
+        snapshots_skipped = 0
+        
+        async with BlizzardAPIClient(game_version=game_version) as client:
+            for realm in realms:
+                try:
+                    # Check if we have a recent snapshot (within last hour)
+                    snapshot_key = f"economy_snapshot:{game_version}:{region}:{realm.lower()}"
+                    
+                    if not force_update:
+                        # Check last snapshot time
+                        last_snapshot_time_key = f"{snapshot_key}:last_update"
+                        last_update = await redis_client.get(last_snapshot_time_key)
+                        
+                        if last_update:
+                            last_time = datetime.fromisoformat(last_update)
+                            time_diff = datetime.now(timezone.utc) - last_time
+                            
+                            if time_diff.total_seconds() < 3600:  # Less than 1 hour
+                                logger.info(f"Skipping {realm} - snapshot is {int(time_diff.total_seconds() / 60)} minutes old")
+                                results[realm] = {
+                                    "status": "skipped",
+                                    "message": f"Recent snapshot exists ({int(time_diff.total_seconds() / 60)} minutes old)"
+                                }
+                                snapshots_skipped += 1
+                                continue
+                    
+                    # Get realm info first
+                    realm_info = await client._get_realm_info(realm)
+                    connected_realm_id = realm_info.get('connected_realm', {}).get('id')
+                    
+                    if not connected_realm_id:
+                        # Try hardcoded IDs for Classic
+                        if game_version == "classic" and realm.lower() in KNOWN_CLASSIC_REALMS:
+                            connected_realm_id = KNOWN_CLASSIC_REALMS[realm.lower()]
+                        else:
+                            results[realm] = {"status": "error", "message": "Could not find connected realm ID"}
+                            continue
+                    
+                    # Get auction house data
+                    ah_data = await client.get_auction_house_data(connected_realm_id)
+                    
+                    if not ah_data or 'auctions' not in ah_data:
+                        results[realm] = {"status": "error", "message": "No auction data available"}
+                        continue
+                    
+                    # Process auction data into summary statistics
+                    auctions = ah_data['auctions']
+                    item_stats = {}
+                    
+                    for auction in auctions:
+                        item_id = auction.get('item', {}).get('id', 0)
+                        if item_id not in item_stats:
+                            item_stats[item_id] = {
+                                "total_quantity": 0,
+                                "min_price": float('inf'),
+                                "max_price": 0,
+                                "sum_price": 0,
+                                "auction_count": 0,
+                                "sellers": set()
+                            }
+                        
+                        quantity = auction.get('quantity', 1)
+                        price = auction.get('unit_price', 0) or auction.get('buyout', 0)
+                        
+                        if price > 0:
+                            item_stats[item_id]['total_quantity'] += quantity
+                            item_stats[item_id]['min_price'] = min(item_stats[item_id]['min_price'], price)
+                            item_stats[item_id]['max_price'] = max(item_stats[item_id]['max_price'], price)
+                            item_stats[item_id]['sum_price'] += price * quantity
+                            item_stats[item_id]['auction_count'] += 1
+                            
+                            # Track unique sellers (if available)
+                            seller = auction.get('seller', {}).get('name')
+                            if seller:
+                                item_stats[item_id]['sellers'].add(seller)
+                    
+                    # Convert to storable format
+                    snapshot_data = {
+                        "realm": realm,
+                        "region": region,
+                        "connected_realm_id": connected_realm_id,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "total_auctions": len(auctions),
+                        "unique_items": len(item_stats),
+                        "items": {}
+                    }
+                    
+                    # Add top 500 most listed items
+                    sorted_items = sorted(item_stats.items(), 
+                                        key=lambda x: x[1]['auction_count'], 
+                                        reverse=True)[:500]
+                    
+                    for item_id, stats in sorted_items:
+                        avg_price = stats['sum_price'] / stats['total_quantity'] if stats['total_quantity'] > 0 else 0
+                        snapshot_data['items'][str(item_id)] = {
+                            "quantity": stats['total_quantity'],
+                            "min_price": stats['min_price'] if stats['min_price'] != float('inf') else 0,
+                            "max_price": stats['max_price'],
+                            "avg_price": int(avg_price),
+                            "auction_count": stats['auction_count'],
+                            "unique_sellers": len(stats['sellers'])
+                        }
+                    
+                    # Store snapshot with timestamp-based key (for historical data)
+                    timestamp_key = f"{snapshot_key}:{datetime.now(timezone.utc).strftime('%Y%m%d_%H')}"
+                    await redis_client.setex(
+                        timestamp_key,
+                        30 * 24 * 60 * 60,  # 30 days retention
+                        json.dumps(snapshot_data)
+                    )
+                    
+                    # Also store as "latest" for quick access
+                    await redis_client.setex(
+                        f"{snapshot_key}:latest",
+                        24 * 60 * 60,  # 24 hours
+                        json.dumps(snapshot_data)
+                    )
+                    
+                    # Update last snapshot time
+                    await redis_client.set(
+                        f"{snapshot_key}:last_update",
+                        datetime.now(timezone.utc).isoformat()
+                    )
+                    
+                    logger.info(f"Captured economy snapshot for {realm}: {len(item_stats)} unique items")
+                    results[realm] = {
+                        "status": "success",
+                        "unique_items": len(item_stats),
+                        "total_auctions": len(auctions)
+                    }
+                    snapshots_created += 1
+                    
+                except Exception as e:
+                    logger.error(f"Error capturing snapshot for {realm}: {e}")
+                    results[realm] = {"status": "error", "message": str(e)}
+        
+        return {
+            "success": True,
+            "snapshots_created": snapshots_created,
+            "snapshots_skipped": snapshots_skipped,
+            "results": results,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error capturing economy snapshots: {str(e)}")
+        return {"error": f"Snapshot capture failed: {str(e)}"}
+
+@mcp.tool()
+@with_supabase_logging
+async def get_economy_trends(
+    realm: str,
+    item_ids: List[int],
+    hours: int = 24,
+    region: str = "us",
+    game_version: str = "retail"
+) -> Dict[str, Any]:
+    """
+    Get price trends for specific items over time
+    
+    Args:
+        realm: Server realm
+        item_ids: List of item IDs to get trends for
+        hours: Number of hours of history to retrieve (max 720/30 days)
+        region: Region (us, eu, etc.)
+        game_version: WoW version ('retail' or 'classic')
+    
+    Returns:
+        Price trend data for specified items
+    """
+    try:
+        logger.info(f"Getting economy trends for {len(item_ids)} items on {realm}")
+        
+        # Initialize services if needed
+        await get_or_initialize_services()
+        
+        if not redis_client:
+            return {
+                "error": "Redis not available",
+                "message": "Redis connection required for retrieving economy trends"
+            }
+        
+        # Limit hours to 30 days max
+        hours = min(hours, 720)
+        
+        trends = {}
+        snapshot_base_key = f"economy_snapshot:{game_version}:{region}:{realm.lower()}"
+        
+        # Get all snapshots for the time period
+        current_time = datetime.now(timezone.utc)
+        
+        for h in range(hours):
+            timestamp = current_time - timedelta(hours=h)
+            timestamp_key = f"{snapshot_base_key}:{timestamp.strftime('%Y%m%d_%H')}"
+            
+            snapshot_data = await redis_client.get(timestamp_key)
+            if snapshot_data:
+                snapshot = json.loads(snapshot_data)
+                
+                for item_id in item_ids:
+                    item_id_str = str(item_id)
+                    if item_id_str not in trends:
+                        trends[item_id_str] = []
+                    
+                    if item_id_str in snapshot.get('items', {}):
+                        item_data = snapshot['items'][item_id_str]
+                        trends[item_id_str].append({
+                            "timestamp": snapshot['timestamp'],
+                            "avg_price": item_data['avg_price'],
+                            "min_price": item_data['min_price'],
+                            "max_price": item_data['max_price'],
+                            "quantity": item_data['quantity'],
+                            "auction_count": item_data['auction_count']
+                        })
+        
+        # Sort trends by timestamp (oldest first)
+        for item_id in trends:
+            trends[item_id].sort(key=lambda x: x['timestamp'])
+        
+        # Get item names
+        item_names = {}
+        if trends:
+            async with BlizzardAPIClient(game_version=game_version) as client:
+                for item_id in item_ids:
+                    try:
+                        item_data = await client.get_item_data(item_id)
+                        name = item_data.get('name', f'Item {item_id}')
+                        if isinstance(name, dict):
+                            name = name.get('en_US', f'Item {item_id}')
+                        item_names[str(item_id)] = name
+                    except:
+                        item_names[str(item_id)] = f'Item {item_id}'
+        
+        return {
+            "success": True,
+            "realm": realm,
+            "hours_requested": hours,
+            "data_points_found": sum(len(trend) for trend in trends.values()),
+            "item_names": item_names,
+            "trends": trends
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting economy trends: {str(e)}")
+        return {"error": f"Trend retrieval failed: {str(e)}"}
 
 @mcp.tool()
 @with_supabase_logging
