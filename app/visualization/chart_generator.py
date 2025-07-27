@@ -5,11 +5,12 @@ Chart and Visualization Generator
 import io
 import base64
 import logging
+import os
 from typing import Dict, Any, List, Optional
-import plotly.graph_objects as go
-import plotly.express as px
-import plotly.io as pio
-from plotly.subplots import make_subplots
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
 from PIL import Image
 import numpy as np
@@ -24,7 +25,12 @@ class ChartGenerator:
     
     def __init__(self):
         # Set default theme
-        pio.templates.default = "plotly_dark"
+        plt.style.use('dark_background')
+        sns.set_theme(style="darkgrid")
+        
+        # Set figure DPI for better quality
+        plt.rcParams['figure.dpi'] = 100
+        plt.rcParams['savefig.dpi'] = 100
         
         # WoW class colors for consistency
         self.class_colors = {
@@ -73,15 +79,15 @@ class ChartGenerator:
             if not raid_data:
                 return await self._create_no_data_chart("No raid progression data available")
             
-            # Create subplot with multiple difficulty levels
-            fig = make_subplots(
-                rows=len(raid_data),
-                cols=1,
-                subplot_titles=[f"{raid['name']} - {raid['tier']}" for raid in raid_data],
-                vertical_spacing=0.1
-            )
+            # Create figure with subplots
+            fig, axes = plt.subplots(len(raid_data), 1, figsize=(10, 3 * len(raid_data)))
+            if len(raid_data) == 1:
+                axes = [axes]  # Make it iterable
             
-            for i, raid in enumerate(raid_data, 1):
+            fig.suptitle(f"Raid Progression - {get_localized_name(guild_info)}", 
+                        fontsize=16, color='white')
+            
+            for i, (raid, ax) in enumerate(zip(raid_data, axes)):
                 difficulties = raid.get("difficulties", [])
                 
                 if difficulties:
@@ -90,47 +96,33 @@ class ChartGenerator:
                     max_bosses = [d["total_bosses"] for d in difficulties]
                     colors = [self.difficulty_colors.get(d, "#CCCCCC") for d in x_labels]
                     
-                    # Add progress bars
-                    fig.add_trace(
-                        go.Bar(
-                            x=x_labels,
-                            y=y_values,
-                            name=f"{raid['name']} Progress",
-                            marker_color=colors,
-                            text=[f"{killed}/{total}" for killed, total in zip(y_values, max_bosses)],
-                            textposition="auto",
-                            showlegend=(i == 1)
-                        ),
-                        row=i, col=1
-                    )
+                    # Create bar chart
+                    bars = ax.bar(x_labels, y_values, color=colors)
                     
-                    # Add maximum boss lines
-                    for j, (label, max_boss) in enumerate(zip(x_labels, max_bosses)):
-                        fig.add_hline(
-                            y=max_boss,
-                            line_dash="dash",
-                            line_color="red",
-                            opacity=0.5,
-                            row=i, col=1
-                        )
+                    # Add text labels on bars
+                    for bar, killed, total in zip(bars, y_values, max_bosses):
+                        height = bar.get_height()
+                        ax.text(bar.get_x() + bar.get_width()/2., height,
+                               f'{killed}/{total}',
+                               ha='center', va='bottom', color='white')
+                    
+                    # Add max boss lines
+                    for j, max_boss in enumerate(max_bosses):
+                        ax.axhline(y=max_boss, color='red', linestyle='--', alpha=0.5)
+                    
+                    ax.set_title(f"{raid['name']} - {raid['tier']}", color='white')
+                    ax.set_ylabel('Bosses Killed', color='white')
+                    ax.set_ylim(0, max(max_bosses) * 1.1 if max_bosses else 10)
+                    ax.tick_params(colors='white')
             
-            # Update layout
-            fig.update_layout(
-                title={
-                    "text": f"Raid Progression - {get_localized_name(guild_info)}",
-                    "x": 0.5,
-                    "font": {"size": 20, "color": "white"}
-                },
-                template="plotly_dark",
-                height=300 * len(raid_data),
-                width=1000,
-                showlegend=True,
-                font={"color": "white"}
-            )
+            plt.tight_layout()
             
-            # Convert to image
-            img_bytes = pio.to_image(fig, format="png", width=1000, height=300 * len(raid_data))
-            img_base64 = base64.b64encode(img_bytes).decode()
+            # Convert to base64
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png', facecolor='#1a1a1a', edgecolor='none')
+            plt.close()
+            buffer.seek(0)
+            img_base64 = base64.b64encode(buffer.read()).decode()
             
             logger.info(f"Generated raid progress chart for {len(raid_data)} raids")
             return img_base64
@@ -183,40 +175,39 @@ class ChartGenerator:
                 classes.append(class_name)
                 colors.append(self.class_colors.get(class_name, "#CCCCCC"))
             
+            # Create figure
+            fig_width = max(8, len(names) * 0.8)
+            fig, ax = plt.subplots(figsize=(fig_width, 6))
+            
             # Create bar chart
-            fig = go.Figure()
+            bars = ax.bar(names, values, color=colors)
             
-            fig.add_trace(go.Bar(
-                x=names,
-                y=values,
-                marker_color=colors,
-                text=[f"{v:.1f}" if isinstance(v, float) else str(v) for v in values],
-                textposition="auto",
-                hovertemplate="<b>%{x}</b><br>" +
-                             f"{metric.replace('_', ' ').title()}: %{{y}}<br>" +
-                             "Class: %{customdata}<extra></extra>",
-                customdata=classes
-            ))
+            # Add value labels on bars
+            for bar, value in zip(bars, values):
+                height = bar.get_height()
+                label = f"{value:.1f}" if isinstance(value, float) else str(value)
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                       label, ha='center', va='bottom', color='white')
             
-            # Update layout
-            fig.update_layout(
-                title={
-                    "text": f"Member Comparison - {metric.replace('_', ' ').title()}",
-                    "x": 0.5,
-                    "font": {"size": 20, "color": "white"}
-                },
-                xaxis_title="Member Name",
-                yaxis_title=metric.replace('_', ' ').title(),
-                template="plotly_dark",
-                width=max(800, len(names) * 80),
-                height=600,
-                font={"color": "white"},
-                xaxis={"tickangle": -45}
-            )
+            # Customize plot
+            ax.set_title(f"Member Comparison - {metric.replace('_', ' ').title()}", 
+                        fontsize=16, color='white', pad=20)
+            ax.set_xlabel('Member Name', color='white')
+            ax.set_ylabel(metric.replace('_', ' ').title(), color='white')
+            ax.tick_params(colors='white')
+            plt.xticks(rotation=45, ha='right')
             
-            # Convert to image
-            img_bytes = pio.to_image(fig, format="png", width=max(800, len(names) * 80), height=600)
-            img_base64 = base64.b64encode(img_bytes).decode()
+            # Add grid for better readability
+            ax.grid(True, axis='y', alpha=0.3)
+            
+            plt.tight_layout()
+            
+            # Convert to base64
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png', facecolor='#1a1a1a', edgecolor='none')
+            plt.close()
+            buffer.seek(0)
+            img_base64 = base64.b64encode(buffer.read()).decode()
             
             logger.info(f"Generated member comparison chart for {len(member_data)} members")
             return img_base64
@@ -356,48 +347,38 @@ class ChartGenerator:
     
     async def _create_no_data_chart(self, message: str) -> str:
         """Create a chart indicating no data available"""
-        fig = go.Figure()
+        fig, ax = plt.subplots(figsize=(8, 4))
         
-        fig.add_annotation(
-            text=message,
-            xref="paper", yref="paper",
-            x=0.5, y=0.5,
-            xanchor="center", yanchor="middle",
-            font={"size": 24, "color": "white"}
-        )
+        ax.text(0.5, 0.5, message,
+               ha='center', va='center', transform=ax.transAxes,
+               fontsize=20, color='white')
         
-        fig.update_layout(
-            template="plotly_dark",
-            width=800,
-            height=400,
-            showlegend=False,
-            xaxis={"visible": False},
-            yaxis={"visible": False}
-        )
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.axis('off')
         
-        img_bytes = pio.to_image(fig, format="png", width=800, height=400)
-        return base64.b64encode(img_bytes).decode()
+        # Convert to base64
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format='png', facecolor='#1a1a1a', edgecolor='none')
+        plt.close()
+        buffer.seek(0)
+        return base64.b64encode(buffer.read()).decode()
     
     async def _create_error_chart(self, error_message: str) -> str:
         """Create a chart indicating an error occurred"""
-        fig = go.Figure()
+        fig, ax = plt.subplots(figsize=(8, 4))
         
-        fig.add_annotation(
-            text=f"⚠️ {error_message}",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5,
-            xanchor="center", yanchor="middle",
-            font={"size": 20, "color": "red"}
-        )
+        ax.text(0.5, 0.5, f"⚠️ {error_message}",
+               ha='center', va='center', transform=ax.transAxes,
+               fontsize=16, color='red')
         
-        fig.update_layout(
-            template="plotly_dark",
-            width=800,
-            height=400,
-            showlegend=False,
-            xaxis={"visible": False},
-            yaxis={"visible": False}
-        )
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.axis('off')
         
-        img_bytes = pio.to_image(fig, format="png", width=800, height=400)
-        return base64.b64encode(img_bytes).decode()
+        # Convert to base64
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format='png', facecolor='#1a1a1a', edgecolor='none')
+        plt.close()
+        buffer.seek(0)
+        return base64.b64encode(buffer.read()).decode()
