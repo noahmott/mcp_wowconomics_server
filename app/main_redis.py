@@ -45,21 +45,23 @@ async def lifespan(app: FastAPI):
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
     
     # Configure SSL for Heroku Redis (uses self-signed certificates)
-    ssl_config = None
     if redis_url.startswith("rediss://"):
-        import ssl
-        ssl_config = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        ssl_config.check_hostname = False
-        ssl_config.verify_mode = ssl.CERT_NONE
         logger.info("Configuring Redis with TLS for Heroku")
-    
-    redis_client = await aioredis.from_url(
-        redis_url,
-        encoding="utf-8",
-        decode_responses=False,  # We'll handle decoding ourselves
-        max_connections=50,
-        ssl=ssl_config if ssl_config else None
-    )
+        # For redis 6.2.0, SSL is handled automatically for rediss:// URLs
+        redis_client = await aioredis.from_url(
+            redis_url,
+            encoding="utf-8",
+            decode_responses=False,  # We'll handle decoding ourselves
+            max_connections=50,
+            ssl_cert_reqs=None  # Disable SSL verification for self-signed certs
+        )
+    else:
+        redis_client = await aioredis.from_url(
+            redis_url,
+            encoding="utf-8",
+            decode_responses=False,  # We'll handle decoding ourselves
+            max_connections=50
+        )
     
     # Test Redis connection
     try:
