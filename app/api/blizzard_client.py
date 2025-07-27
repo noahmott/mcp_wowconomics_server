@@ -190,8 +190,14 @@ class BlizzardAPIClient:
             # WoW Classic uses different namespaces
             if "/profile/" in endpoint:
                 namespace = f"profile-classic-{self.region}"
+            elif "/auctions" in endpoint or "/connected-realm/" in endpoint:
+                # Auction house and connected realm data needs dynamic namespace in Classic
+                namespace = f"dynamic-classic-{self.region}"
+            elif "/data/wow/realm/" in endpoint:
+                # Realm data also uses dynamic namespace in Classic
+                namespace = f"dynamic-classic-{self.region}"
             elif "/data/" in endpoint:
-                namespace = f"static-classic-{self.region}"  # Classic uses static namespace for data
+                namespace = f"static-classic-{self.region}"  # Classic uses static namespace for most data
             else:
                 namespace = f"static-classic-{self.region}"  # fallback for classic
         else:
