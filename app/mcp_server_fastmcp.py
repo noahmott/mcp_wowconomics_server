@@ -460,6 +460,125 @@ async def compare_member_performance(
         return {"error": f"Comparison failed: {str(e)}"}
 
 @mcp.tool()
+async def lookup_item_details(
+    item_id: int,
+    game_version: str = "retail"
+) -> Dict[str, Any]:
+    """
+    Look up WoW item details by item ID
+    
+    Args:
+        item_id: The item ID to look up
+        game_version: WoW version ('retail', 'classic', or 'classic-era')
+    
+    Returns:
+        Item details including name, description, quality, etc.
+    """
+    try:
+        logger.info(f"Looking up item {item_id} ({game_version})")
+        
+        async with BlizzardAPIClient(game_version=game_version) as client:
+            # Get item data from Blizzard API
+            item_data = await client.get_item_data(item_id)
+            
+            # Extract relevant information
+            result = {
+                "success": True,
+                "item_id": item_id,
+                "game_version": game_version
+            }
+            
+            # Handle name format differences between Classic and Retail
+            name = item_data.get('name', 'Unknown Item')
+            if isinstance(name, dict):
+                # Retail format with localization
+                result["name"] = name.get('en_US', 'Unknown Item')
+            else:
+                # Classic format (direct string)
+                result["name"] = name
+            
+            # Add other item details
+            result.update({
+                "quality": item_data.get('quality', {}).get('name', 'Unknown'),
+                "item_class": item_data.get('item_class', {}).get('name', 'Unknown'),
+                "item_subclass": item_data.get('item_subclass', {}).get('name', 'Unknown'),
+                "level": item_data.get('level', 0),
+                "required_level": item_data.get('required_level', 0),
+                "sell_price": item_data.get('sell_price', 0),
+                "preview_item": item_data.get('preview_item', {}),
+                "media": item_data.get('media', {})
+            })
+            
+            return result
+            
+    except Exception as e:
+        logger.error(f"Error looking up item {item_id}: {str(e)}")
+        return {
+            "success": False,
+            "error": f"Failed to lookup item {item_id}: {str(e)}",
+            "item_id": item_id
+        }
+
+@mcp.tool()
+async def lookup_multiple_items(
+    item_ids: List[int],
+    game_version: str = "retail"
+) -> Dict[str, Any]:
+    """
+    Look up multiple WoW items by their IDs
+    
+    Args:
+        item_ids: List of item IDs to look up
+        game_version: WoW version ('retail', 'classic', or 'classic-era')
+    
+    Returns:
+        Dictionary of item details keyed by item ID
+    """
+    try:
+        logger.info(f"Looking up {len(item_ids)} items ({game_version})")
+        
+        results = {}
+        failed_lookups = []
+        
+        async with BlizzardAPIClient(game_version=game_version) as client:
+            for item_id in item_ids:
+                try:
+                    item_data = await client.get_item_data(item_id)
+                    
+                    # Handle name format differences
+                    name = item_data.get('name', 'Unknown Item')
+                    if isinstance(name, dict):
+                        name = name.get('en_US', 'Unknown Item')
+                    
+                    results[item_id] = {
+                        "name": name,
+                        "quality": item_data.get('quality', {}).get('name', 'Unknown'),
+                        "item_class": item_data.get('item_class', {}).get('name', 'Unknown'),
+                        "level": item_data.get('level', 0),
+                        "sell_price": item_data.get('sell_price', 0)
+                    }
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to lookup item {item_id}: {str(e)}")
+                    failed_lookups.append(item_id)
+        
+        return {
+            "success": True,
+            "items_found": len(results),
+            "items_requested": len(item_ids),
+            "failed_lookups": failed_lookups,
+            "items": results,
+            "game_version": game_version
+        }
+        
+    except Exception as e:
+        logger.error(f"Error looking up multiple items: {str(e)}")
+        return {
+            "success": False,
+            "error": f"Failed to lookup items: {str(e)}"
+        }
+
+@mcp.tool()
 async def get_classic_realm_id(
     realm: str,
     game_version: str = "classic"

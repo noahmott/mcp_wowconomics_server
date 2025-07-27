@@ -409,6 +409,11 @@ class BlizzardAPIClient:
         endpoint = f"/data/wow/connected-realm/{connected_realm_id}/auctions"
         return await self.make_request(endpoint)
     
+    async def get_item_data(self, item_id: int) -> Dict[str, Any]:
+        """Get item data by item ID"""
+        endpoint = f"/data/wow/item/{item_id}"
+        return await self.make_request(endpoint)
+    
     # Comprehensive guild analysis
     async def get_comprehensive_guild_data(self, realm: str, guild_name: str) -> Dict[str, Any]:
         """Get comprehensive guild data including roster and member details"""
