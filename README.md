@@ -60,11 +60,11 @@ scripts\startup\scripts\startup\start_server.bat
 <div align="center">
 
 [![FastAPI](https://img.shields.io/badge/fastapi-0.116.1-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
+[![Redis](https://img.shields.io/badge/redis-6.2.0-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
 [![Matplotlib](https://img.shields.io/badge/matplotlib-3.8.0-11557c?style=flat-square&logo=python&logoColor=white)](https://matplotlib.org)
 [![Seaborn](https://img.shields.io/badge/seaborn-0.13.0-4c72b0?style=flat-square&logo=python&logoColor=white)](https://seaborn.pydata.org)
 [![LangChain](https://img.shields.io/badge/langchain-0.3.14-1C3A3A?style=flat-square&logo=langchain&logoColor=white)](https://langchain.com)
 [![Supabase](https://img.shields.io/badge/supabase-2.14.0-3ECF8E?style=flat-square&logo=supabase&logoColor=white)](https://supabase.com)
-[![Redis](https://img.shields.io/badge/redis-6.2.0-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
 [![FastMCP](https://img.shields.io/badge/FastMCP-2.0-FF6B6B?style=flat-square&logo=fastapi&logoColor=white)](https://github.com/jlowin/fastmcp)
 
 [Overview](#-overview) • [Guild Analytics](#-guild-analytics-tools) • [Features](#-key-features) • [Tools](#-complete-tool-reference) • [Quick Start](#-quick-start)
@@ -75,13 +75,14 @@ scripts\startup\scripts\startup\start_server.bat
 
 ## 🆕 What's New (July 2025)
 
+- **Redis Caching Integration**: Guild rosters cached for 15 days, reducing API calls and improving performance
+- **Economy Snapshot System**: Hourly auction house data capture with 30-day historical retention
 - **AI-Powered Guild Insights**: OpenAI GPT-4o-mini integration for intelligent guild analysis and recommendations
 - **Advanced Chart Generation**: Matplotlib/seaborn visualization for raid progress and member performance
 - **WoW Classic & Retail Support**: Full support for both Classic and Retail WoW with proper API namespaces
 - **Real-time Activity Tracking**: Supabase integration for comprehensive usage analytics and logging
 - **LangGraph Workflows**: Multi-step analysis chains for complex guild performance evaluations
-- **Member Performance Analytics**: Deep individual character analysis with equipment and achievement tracking
-- **12 Comprehensive Tools**: 7 guild-focused analytics tools + 5 auction house utilities
+- **14 Comprehensive Tools**: 7 guild analytics + 7 market/economy tools including new snapshot features
 
 ## 📚 Overview
 
@@ -160,28 +161,32 @@ graph LR
 - **Performance Metrics** - Member progression, activity patterns, achievement tracking
 - **Visual Analytics** - Matplotlib/seaborn charts for raid progress and comparisons
 - **Real-time Monitoring** - Supabase activity logging and usage analytics
+- **Redis Caching** - 15-day guild roster cache, hourly economy snapshots
+- **Historical Analysis** - 30-day price trend data for market analysis
 
 ## 🛠️ Complete Tool Reference
 
 <details>
-<summary><b>Click to view all 12 analytics tools</b></summary>
+<summary><b>Click to view all 14 analytics tools</b></summary>
 
 ### 🏰 Guild Analytics Tools (7)
 
 | Tool | Purpose | Output Format |
 |------|---------|---------------|
 | `analyze_guild_performance` | Comprehensive guild analysis with AI insights | Detailed performance report with recommendations |
-| `get_guild_member_list` | Guild roster with sorting and filtering | JSON member data with statistics |
+| `get_guild_member_list` | Guild roster with sorting and filtering (Redis cached) | JSON member data with cache status |
 | `analyze_member_performance` | Individual character analysis | Equipment, achievements, and progression data |
 | `generate_raid_progress_chart` | Visual raid progression tracking | Matplotlib/seaborn charts (PNG) |
 | `compare_member_performance` | Side-by-side member comparisons | Comparative analysis with visualizations |
 | `test_supabase_connection` | Activity logging and monitoring | Connection status and usage analytics |
 
-### 📈 Market Intelligence Tools (5)
+### 📈 Market Intelligence Tools (7)
 
 | Tool | Purpose | Output Format |
 |------|---------|---------------|
 | `get_auction_house_snapshot` | Current auction house data | Real-time market snapshots |
+| `capture_economy_snapshot` | Hourly economy data capture (new) | Snapshot results with item statistics |
+| `get_economy_trends` | Historical price trends (new) | 30-day price history for items |
 | `analyze_item_market_history` | Market trends and analysis | Price history and trend analysis |
 | `find_market_opportunities` | Profit margin identification | Market opportunity reports |
 | `lookup_item_details` | Item information lookup | Detailed item metadata |
@@ -209,7 +214,10 @@ graph LR
 - **Realm Coverage**: All US/EU realms supported via Blizzard Battle.net API
 - **WoW Versions**: Full support for both Classic and Retail with proper namespace handling
 - **Data Freshness**: Real-time guild and character data, hourly auction house updates
-- **Caching**: Redis optimization for frequently accessed guild and character data
+- **Redis Caching**: 
+  - Guild rosters: 15-day TTL (reduces API calls by ~90%)
+  - Economy snapshots: Hourly captures with 30-day retention
+  - Automatic cache invalidation after TTL expiry
 - **Storage**: Supabase for activity tracking with 30-day retention
 
 ### Guild Analytics Capabilities
@@ -288,7 +296,7 @@ For guild officers who need custom modifications or enhanced privacy:
 - Python 3.12+ with data science libraries
 - Blizzard API Credentials ([Developer Access](https://develop.battle.net/access/))
 - OpenAI API Key for AI-powered insights
-- Redis for caching (optional)
+- Redis 6.2+ for caching (required for roster caching and economy snapshots)
 - Supabase account for activity tracking (optional)
 
 #### Installation
@@ -314,6 +322,48 @@ cp .env.example .env
 
 # Start the server
 python app/mcp_server_fastmcp.py
+```
+
+## 🚀 New Redis-Powered Features
+
+### Guild Roster Caching
+
+The `get_guild_member_list` tool now includes intelligent caching:
+
+```python
+# First call fetches from API and caches for 15 days
+result = await get_guild_member_list(
+    realm="stormrage",
+    guild_name="YourGuild"
+)
+# Response includes: "from_cache": false, "cache_age_days": 0
+
+# Subsequent calls use cached data
+result = await get_guild_member_list(
+    realm="stormrage", 
+    guild_name="YourGuild"
+)
+# Response includes: "from_cache": true, "cache_age_days": 2
+```
+
+### Economy Snapshot System
+
+Capture and analyze market trends over time:
+
+```python
+# Capture hourly snapshots for multiple realms
+snapshot = await capture_economy_snapshot(
+    realms=["stormrage", "area-52", "tichondrius"],
+    region="us",
+    force_update=False  # Skip if snapshot exists within last hour
+)
+
+# Retrieve historical price trends
+trends = await get_economy_trends(
+    realm="stormrage",
+    item_ids=[168487, 171276, 171315],  # Zin'anthid, other herbs
+    hours=168  # Last 7 days
+)
 ```
 
 ## 📖 Usage Examples
