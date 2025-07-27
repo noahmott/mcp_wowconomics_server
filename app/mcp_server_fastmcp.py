@@ -71,6 +71,9 @@ async def analyze_guild_performance(
     try:
         logger.info(f"Analyzing guild {guild_name} on {realm} ({game_version})")
         
+        # Initialize services if needed
+        await get_or_initialize_services()
+        
         # Log the request if activity logger is available
         if activity_logger:
             log_id = await activity_logger.log_request(
@@ -578,9 +581,13 @@ async def find_market_opportunities(
         logger.error(f"Error finding market opportunities: {str(e)}")
         return {"error": f"Market opportunity search failed: {str(e)}"}
 
-async def initialize_services():
-    """Initialize Redis, activity logger, and Supabase streaming"""
+async def get_or_initialize_services():
+    """Lazy initialization of Redis, activity logger, and Supabase streaming"""
     global redis_client, activity_logger, streaming_service
+    
+    # Return if already initialized
+    if redis_client and activity_logger:
+        return
     
     try:
         # Initialize Redis connection
@@ -628,7 +635,7 @@ async def initialize_services():
             
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}")
-        raise
+        # Don't raise - allow server to continue without logging
 
 
 def main():
@@ -647,11 +654,6 @@ def main():
         logger.info("🔧 Tools: Guild analysis, visualization, and auction house")
         logger.info(f"📊 Registered tools: {len(mcp._tool_manager._tools)}")
         logger.info(f"🌐 HTTP Server: 0.0.0.0:{port}")
-        
-        # Initialize services in a new event loop
-        logger.info("📦 Initializing Redis and logging services...")
-        asyncio.run(initialize_services())
-        
         logger.info("✅ Starting server...")
         
         # Run server using FastMCP 2.0 HTTP transport
