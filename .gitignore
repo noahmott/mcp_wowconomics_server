@@ -98,8 +98,7 @@ simple_*.py
 historical_*.json
 historical_*.txt
 
-# Redis Insight
+# Redis Insight (removed from project)
 redisinsight.db
-config/docker/config/redis-insight/logs/
-config/docker/config/redis-insight/databases.json
-config/redis-insight/
+**/redis-insight/
+**/redisinsight/
