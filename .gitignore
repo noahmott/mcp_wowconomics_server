@@ -52,6 +52,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
+*.log.*
 
 # Test files
 test_*.py
@@ -62,6 +63,7 @@ testing/
 *.db
 *.sqlite
 *.sqlite3
+wowguild.db
 
 # Temporary files
 *.tmp
@@ -93,3 +95,9 @@ simple_*.py
 # Historical data
 historical_*.json
 historical_*.txt
+
+# Redis Insight
+redisinsight.db
+config/docker/config/redis-insight/logs/
+config/docker/config/redis-insight/databases.json
+config/redis-insight/
