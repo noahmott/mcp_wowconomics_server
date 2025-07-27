@@ -1,1 +1,1 @@
-web: python -m app.main_redis
+web: gunicorn app.main_redis:app -w 1 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
