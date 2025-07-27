@@ -2,6 +2,7 @@
 fastapi==0.116.1
 uvicorn[standard]==0.34.1
 gunicorn==23.0.0
+fastmcp>=2.0.0
 
 # HTTP client
 httpx==0.28.1
