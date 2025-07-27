@@ -109,6 +109,9 @@ class BlizzardAPIClient:
             'frostmane', 'ravencrest', 'chamber-of-aspects', 'defias-brotherhood'
         }
         
+        # Cache for connected realm lookups
+        self._connected_realm_cache = {}
+        
     async def __aenter__(self):
         """Async context manager entry"""
         # Configure timeout from environment
@@ -389,75 +392,104 @@ class BlizzardAPIClient:
             
             # Check if we have connected_realm info for retail
             if self.game_version == "retail" and not result.get('connected_realm'):
-                logger.info(f"Direct realm result missing connected_realm for retail, trying search")
-                raise BlizzardAPIError("Need connected realm search for retail", 404)
+                logger.info(f"Direct realm result missing connected_realm for retail, need to find it via index")
+                raise BlizzardAPIError("Need connected realm index for retail", 404)
             
             return result
         except BlizzardAPIError as e:
-            logger.info(f"Direct realm endpoint failed for {realm_slug}, trying connected realm search")
+            logger.info(f"Direct realm endpoint failed for {realm_slug}, trying connected realm index")
             
-            # Try connected realm search endpoint (works for both retail and classic)
-            search_endpoint = f"/data/wow/search/connected-realm"
-            # Use the proper search syntax for realm name
-            params = {
-                "realms.slug": realm_slug.lower(),
-                "_pageSize": 100,
-                "orderby": "id"
-            }
-            
-            try:
-                logger.info(f"Searching connected realms with params: {params}")
-                search_results = await self.make_request(search_endpoint, params)
-                logger.info(f"Search response: {search_results.get('pageCount', 0)} pages, {len(search_results.get('results', []))} results")
-                
-                if search_results.get('results'):
-                    logger.info(f"Connected realm search returned {len(search_results['results'])} results")
+            # For retail, we need to get the connected realm index and search through it
+            if self.game_version == "retail":
+                try:
+                    # Check cache first
+                    if realm_slug.lower() in self._connected_realm_cache:
+                        logger.info(f"Using cached connected realm data for {realm_slug}")
+                        return self._connected_realm_cache[realm_slug.lower()]
                     
-                    # Find the connected realm that contains our realm
-                    for connected_realm in search_results['results']:
-                        cr_data = connected_realm.get('data', {})
-                        realms = cr_data.get('realms', [])
+                    # Get connected realm index
+                    index_endpoint = f"/data/wow/connected-realm/index"
+                    logger.info(f"Fetching connected realm index")
+                    index_results = await self.make_request(index_endpoint)
+                    
+                    if index_results.get('connected_realms'):
+                        logger.info(f"Got {len(index_results['connected_realms'])} connected realms")
                         
-                        for realm in realms:
-                            realm_name = realm.get('name', {})
-                            if isinstance(realm_name, dict):
-                                realm_name = realm_name.get(self.locale, '')
+                        # First, try known realm IDs for efficiency
+                        if realm_slug.lower() in KNOWN_RETAIL_REALMS:
+                            cr_id = KNOWN_RETAIL_REALMS[realm_slug.lower()]
+                            logger.info(f"Trying known connected realm ID {cr_id} for {realm_slug}")
                             
-                            if (realm.get('slug', '').lower() == realm_slug.lower() or 
-                                realm_name.lower() == realm_slug.lower()):
-                                # Found it! Return a formatted response
-                                logger.info(f"Found realm {realm_slug} in connected realm {cr_data.get('id')}")
-                                return {
-                                    'name': realm_name,
-                                    'slug': realm.get('slug', realm_slug),
-                                    'connected_realm': {
-                                        'id': cr_data.get('id'),
-                                        'href': cr_data.get('href', '')
-                                    },
-                                    'id': realm.get('id'),
-                                    'region': cr_data.get('region', {}),
-                                    'population': cr_data.get('population', {}),
-                                    'type': realm.get('type', {})
-                                }
+                            try:
+                                cr_endpoint = f"/data/wow/connected-realm/{cr_id}"
+                                cr_data = await self.make_request(cr_endpoint)
+                                
+                                # Verify our realm is in this connected realm
+                                for realm in cr_data.get('realms', []):
+                                    if realm.get('slug', '').lower() == realm_slug.lower():
+                                        logger.info(f"Confirmed realm {realm_slug} in connected realm {cr_id}")
+                                        result = {
+                                            'name': realm.get('name', realm_slug),
+                                            'slug': realm.get('slug', realm_slug),
+                                            'connected_realm': {
+                                                'id': cr_id,
+                                                'href': f"/data/wow/connected-realm/{cr_id}"
+                                            },
+                                            'id': realm.get('id'),
+                                            'region': cr_data.get('region', {}),
+                                            'population': cr_data.get('population', {}),
+                                            'type': realm.get('type', {})
+                                        }
+                                        self._connected_realm_cache[realm_slug.lower()] = result
+                                        return result
+                            except Exception as e:
+                                logger.warning(f"Known realm ID {cr_id} didn't work for {realm_slug}: {e}")
+                        
+                        # If known ID didn't work, search through all connected realms
+                        for cr_ref in index_results['connected_realms']:
+                            cr_id = cr_ref.get('id')
+                            if cr_id:
+                                # Get the specific connected realm data
+                                cr_endpoint = f"/data/wow/connected-realm/{cr_id}"
+                                cr_data = await self.make_request(cr_endpoint)
+                                
+                                # Check if our realm is in this connected realm
+                                for realm in cr_data.get('realms', []):
+                                    if realm.get('slug', '').lower() == realm_slug.lower():
+                                        logger.info(f"Found realm {realm_slug} in connected realm {cr_id}")
+                                        result = {
+                                            'name': realm.get('name', realm_slug),
+                                            'slug': realm.get('slug', realm_slug),
+                                            'connected_realm': {
+                                                'id': cr_id,
+                                                'href': cr_ref.get('href', '')
+                                            },
+                                            'id': realm.get('id'),
+                                            'region': cr_data.get('region', {}),
+                                            'population': cr_data.get('population', {}),
+                                            'type': realm.get('type', {})
+                                        }
+                                        self._connected_realm_cache[realm_slug.lower()] = result
+                                        return result
+                        
+                        logger.warning(f"Realm {realm_slug} not found in any connected realm")
+                        
+                except Exception as index_error:
+                    logger.error(f"Connected realm index lookup failed: {str(index_error)}")
                 
-                logger.warning(f"No connected realm found for {realm_slug} in search results")
+                # If index lookup fails, try the hardcoded IDs
                 
                 # If retail and we have a known realm ID, use it
-                if self.game_version == "retail":
-                    if realm_slug.lower() in KNOWN_RETAIL_REALMS:
-                        logger.info(f"Using known realm ID for {realm_slug}")
-                        return {
-                            'name': realm_slug.title(),
-                            'slug': realm_slug.lower(),
-                            'connected_realm': {
-                                'id': KNOWN_RETAIL_REALMS[realm_slug.lower()],
-                                'href': f"/data/wow/connected-realm/{KNOWN_RETAIL_REALMS[realm_slug.lower()]}"
-                            }
+                if realm_slug.lower() in KNOWN_RETAIL_REALMS:
+                    logger.info(f"Using known realm ID for {realm_slug}")
+                    return {
+                        'name': realm_slug.title(),
+                        'slug': realm_slug.lower(),
+                        'connected_realm': {
+                            'id': KNOWN_RETAIL_REALMS[realm_slug.lower()],
+                            'href': f"/data/wow/connected-realm/{KNOWN_RETAIL_REALMS[realm_slug.lower()]}"
                         }
-                
-            except Exception as search_error:
-                logger.error(f"Connected realm search failed: {str(search_error)}")
-                logger.error(f"Search error details: {type(search_error).__name__}")
+                    }
             
             # If that also fails and it's classic, try the old search endpoint
             if self.game_version == "classic" and e.status_code == 404:
