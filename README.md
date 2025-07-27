@@ -40,34 +40,34 @@ scripts\startup\scripts\startup\start_server.bat
 
 <div align="center">
   
-# 📊 WoW Economic Analysis MCP Server
+# 🏰 WoW Guild Analytics MCP Server
 
-### Academic Research Tool for Virtual Economy Analysis
+### Advanced Guild Management and Performance Analysis Tool
 
-[![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
-[![PostgreSQL](https://img.shields.io/badge/postgresql-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Python](https://img.shields.io/badge/python-3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
+[![FastMCP](https://img.shields.io/badge/FastMCP-2.0-FF6B6B?style=for-the-badge&logo=fastapi&logoColor=white)](https://github.com/jlowin/fastmcp)
 [![Battle.net](https://img.shields.io/badge/battle.net-API-00AEFF?style=for-the-badge&logo=battle.net&logoColor=white)](https://develop.battle.net)
-[![Claude](https://img.shields.io/badge/Claude-D97757?style=for-the-badge&logo=claude&logoColor=fff)](https://claude.ai)
+[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-74aa9c?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com)
 [![Heroku](https://img.shields.io/badge/heroku-deployed-430098?style=for-the-badge&logo=heroku&logoColor=white)](https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/)
 [![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-**A research-grade Model Context Protocol server for analyzing World of Warcraft's virtual economy**
+**A comprehensive Model Context Protocol server for World of Warcraft guild analytics and management**
 
-*Providing quantitative analysis tools for academic research in digital economies, market dynamics, and behavioral economics*
+*Empowering guild officers and leaders with AI-powered insights, performance tracking, and member analysis*
 
 </div>
 
 <div align="center">
 
 [![FastAPI](https://img.shields.io/badge/fastapi-0.116.1-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
-[![Pandas](https://img.shields.io/badge/pandas-2.3.0-150458?style=flat-square&logo=pandas&logoColor=white)](https://pandas.pydata.org)
-[![NumPy](https://img.shields.io/badge/numpy-1.26.4-013243?style=flat-square&logo=numpy&logoColor=white)](https://numpy.org)
-[![Plotly](https://img.shields.io/badge/plotly-6.2.0-3F4F75?style=flat-square&logo=plotly&logoColor=white)](https://plotly.com)
-[![OpenAI](https://img.shields.io/badge/openai-1.57.3-74aa9c?style=flat-square&logo=openai&logoColor=white)](https://openai.com)
+[![Matplotlib](https://img.shields.io/badge/matplotlib-3.8.0-11557c?style=flat-square&logo=python&logoColor=white)](https://matplotlib.org)
+[![Seaborn](https://img.shields.io/badge/seaborn-0.13.0-4c72b0?style=flat-square&logo=python&logoColor=white)](https://seaborn.pydata.org)
+[![LangChain](https://img.shields.io/badge/langchain-0.3.14-1C3A3A?style=flat-square&logo=langchain&logoColor=white)](https://langchain.com)
+[![Supabase](https://img.shields.io/badge/supabase-2.14.0-3ECF8E?style=flat-square&logo=supabase&logoColor=white)](https://supabase.com)
 [![Redis](https://img.shields.io/badge/redis-6.2.0-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
-[![SQLAlchemy](https://img.shields.io/badge/sqlalchemy-2.0.32-FCA121?style=flat-square)](https://www.sqlalchemy.org)
+[![FastMCP](https://img.shields.io/badge/FastMCP-2.0-FF6B6B?style=flat-square&logo=fastapi&logoColor=white)](https://github.com/jlowin/fastmcp)
 
-[Overview](#-overview) • [Research Applications](#-research-applications) • [Methodology](#-methodology) • [Tools](#-analysis-tools) • [Data](#-data-collection)
+[Overview](#-overview) • [Guild Analytics](#-guild-analytics-tools) • [Features](#-key-features) • [Tools](#-complete-tool-reference) • [Quick Start](#-quick-start)
 
 </div>
 
@@ -75,165 +75,175 @@ scripts\startup\scripts\startup\start_server.bat
 
 ## 🆕 What's New (July 2025)
 
-- **WoW Classic Support**: Full support for WoW Classic API endpoints with `static-classic` namespace
-- **Dual Version Updates**: Scheduled updates can now pull data from both Classic and Retail
-- **Aggregate Market Snapshots**: Now capturing comprehensive market data instead of individual price points
-- **PostgreSQL Storage**: Persistent data storage with 30-day retention
-- **Market Velocity Tracking**: New metrics for turnover rates and estimated sales
-- **Enhanced Security**: Resource limits to prevent DoS and ensure stable operation
-- **11 Analysis Tools**: Added `query_aggregate_market_data` and `check_database_status`
+- **AI-Powered Guild Insights**: OpenAI GPT-4o-mini integration for intelligent guild analysis and recommendations
+- **Advanced Chart Generation**: Matplotlib/seaborn visualization for raid progress and member performance
+- **WoW Classic & Retail Support**: Full support for both Classic and Retail WoW with proper API namespaces
+- **Real-time Activity Tracking**: Supabase integration for comprehensive usage analytics and logging
+- **LangGraph Workflows**: Multi-step analysis chains for complex guild performance evaluations
+- **Member Performance Analytics**: Deep individual character analysis with equipment and achievement tracking
+- **12 Comprehensive Tools**: 7 guild-focused analytics tools + 5 auction house utilities
 
 ## 📚 Overview
 
-This MCP server provides researchers with sophisticated tools to analyze World of Warcraft's auction house economy, one of the most complex virtual economies with millions of daily transactions across hundreds of server markets. The system enables quantitative research in:
+This MCP server provides guild officers, leaders, and WoW community managers with comprehensive analytics tools for World of Warcraft guild management and performance analysis. Built on FastMCP 2.0 with AI-powered insights, the system enables deep understanding of:
 
-- **Market Microstructure** - Price discovery, bid-ask spreads, market efficiency
-- **Behavioral Economics** - Player trading patterns, decision-making under uncertainty
-- **Network Effects** - Cross-server arbitrage, information propagation
-- **Time Series Analysis** - Price volatility, seasonal patterns, trend forecasting
+- **Guild Performance Analytics** - Member progression, activity patterns, and performance metrics
+- **Individual Member Analysis** - Character profiles, equipment optimization, and achievement tracking  
+- **Raid Team Management** - Progression tracking, performance comparisons, and team composition
+- **Market Intelligence** - Auction house monitoring and economic opportunities for guild funding
 
-## 🔬 Research Applications
+## 🏰 Guild Analytics Tools
 
 <table>
 <tr>
 <td>
 
-### Economic Theory Testing
-- **Market Efficiency** - Test EMH in virtual markets
-- **Price Discovery** - Analyze information flow
-- **Arbitrage** - Study cross-market opportunities
-- **Supply/Demand** - Model equilibrium dynamics
+### Performance Analysis
+- **Guild Overview** - Comprehensive performance metrics with AI insights
+- **Member Tracking** - Individual character progression and statistics
+- **Raid Progress** - Visual charts of raid team advancement
+- **Comparative Analysis** - Side-by-side member performance comparison
 
 </td>
 <td>
 
-### Data Science Applications
-- **Time Series Forecasting** - ARIMA, Prophet models
-- **Volatility Analysis** - GARCH modeling
-- **Clustering** - Market segmentation
-- **Anomaly Detection** - Unusual trading patterns
+### Management Features
+- **Member Roster** - Detailed guild member listings with sorting/filtering
+- **Activity Monitoring** - Real-time tracking of guild analytics usage
+- **Performance Charts** - Visual representations of guild and member data
+- **AI Recommendations** - Intelligent suggestions for guild improvement
 
 </td>
 </tr>
 <tr>
 <td>
 
-### Behavioral Studies
-- **Trading Psychology** - Risk preferences
-- **Social Networks** - Guild trading patterns
-- **Learning Curves** - New player behavior
-- **Market Manipulation** - Detection algorithms
+### Market Intelligence
+- **Auction House Monitoring** - Current market snapshots and trends
+- **Profit Opportunities** - Market analysis for guild funding strategies
+- **Item Lookup** - Detailed item information and market values
+- **Cross-Realm Analysis** - Compare markets across different servers
 
 </td>
 <td>
 
-### Computational Economics
-- **Agent-Based Models** - Simulate markets
-- **Machine Learning** - Price predictions
-- **Network Analysis** - Trade relationships
-- **High-Frequency Data** - Microsecond analysis
+### Technical Features
+- **Multi-Version Support** - Both Classic and Retail WoW compatibility
+- **Real-time Logging** - Supabase integration for activity tracking
+- **Redis Caching** - Optimized performance for frequent queries
+- **Chart Generation** - Matplotlib/seaborn visualization without Chrome
 
 </td>
 </tr>
 </table>
 
-## 🔍 Methodology
+## 🔍 Key Features
 
-### Data Collection Framework
+### AI-Powered Analysis Architecture
 
 ```mermaid
 graph LR
-    A[Blizzard API] --> B[Data Collection Layer]
+    A[Blizzard API] --> B[FastMCP Server]
     B --> C[Redis Cache]
-    B --> D[PostgreSQL Storage]
-    C --> E[Real-time Analysis]
-    D --> F[Historical Analysis]
-    E --> G[MCP Interface]
-    F --> G
-    G --> H[Research Tools]
+    B --> D[OpenAI GPT-4o-mini]
+    C --> E[Guild Analytics]
+    D --> E
+    E --> F[LangGraph Workflows]
+    F --> G[Chart Generation]
+    E --> H[Supabase Logging]
+    G --> I[Visual Reports]
 ```
 
-### Statistical Methods Implemented
+### Advanced Analytics Capabilities
 
-- **Descriptive Statistics** - Mean, median, standard deviation, quantiles
-- **Time Series Decomposition** - Trend, seasonal, residual components
-- **Volatility Measures** - Historical volatility, EWMA, GARCH
-- **Market Metrics** - Liquidity ratios, turnover rates, price impact
+- **AI Guild Insights** - GPT-4o-mini powered analysis and recommendations
+- **Performance Metrics** - Member progression, activity patterns, achievement tracking
+- **Visual Analytics** - Matplotlib/seaborn charts for raid progress and comparisons
+- **Real-time Monitoring** - Supabase activity logging and usage analytics
 
-## 🛠️ Analysis Tools
+## 🛠️ Complete Tool Reference
 
 <details>
-<summary><b>Click to view all 11 research tools</b></summary>
+<summary><b>Click to view all 12 analytics tools</b></summary>
 
-| Tool | Research Application | Output Format |
-|------|---------------------|---------------|
-| `analyze_market_opportunities` | Arbitrage detection, market inefficiencies | JSON with statistical metrics |
-| `analyze_crafting_profits` | Production economics, value chains | Profit margins, breakeven analysis |
-| `predict_market_trends` | Time series forecasting, trend analysis | Predictions with confidence intervals |
-| `get_historical_data` | Data collection for research | CSV-ready time series data |
-| `update_historical_database` | Maintain research dataset | Database update confirmation |
-| `query_aggregate_market_data` | Access aggregate market snapshots | Market volume, depth, velocity metrics |
-| `analyze_with_details` | Deep statistical analysis | Comprehensive research report |
-| `debug_api_data` | Data quality validation | Raw API response analysis |
-| `get_item_info` | Item classification, categorization | Detailed item metadata |
-| `check_database_status` | Database health and storage metrics | Connection status, record counts |
-| `get_analysis_help` | Documentation for researchers | Tool usage guidelines |
+### 🏰 Guild Analytics Tools (7)
+
+| Tool | Purpose | Output Format |
+|------|---------|---------------|
+| `analyze_guild_performance` | Comprehensive guild analysis with AI insights | Detailed performance report with recommendations |
+| `get_guild_member_list` | Guild roster with sorting and filtering | JSON member data with statistics |
+| `analyze_member_performance` | Individual character analysis | Equipment, achievements, and progression data |
+| `generate_raid_progress_chart` | Visual raid progression tracking | Matplotlib/seaborn charts (PNG) |
+| `compare_member_performance` | Side-by-side member comparisons | Comparative analysis with visualizations |
+| `test_supabase_connection` | Activity logging and monitoring | Connection status and usage analytics |
+
+### 📈 Market Intelligence Tools (5)
+
+| Tool | Purpose | Output Format |
+|------|---------|---------------|
+| `get_auction_house_snapshot` | Current auction house data | Real-time market snapshots |
+| `analyze_item_market_history` | Market trends and analysis | Price history and trend analysis |
+| `find_market_opportunities` | Profit margin identification | Market opportunity reports |
+| `lookup_item_details` | Item information lookup | Detailed item metadata |
+| `lookup_multiple_items` | Batch item information | Multiple item data analysis |
+
+### 🔧 Utility Tools (1)
+
+| Tool | Purpose | Output Format |
+|------|---------|---------------|
+| `test_classic_auction_house` | Classic WoW auction house testing | Diagnostic information |
 
 </details>
 
-## 📈 Data Collection
+## 📊 Data Sources & Coverage
 
-### Available Datasets
+### Available Data Types
 
-- **Price Time Series** - Minute-level granularity across all realms
-- **Volume Data** - Transaction quantities and frequencies
-- **Cross-Sectional Data** - Item attributes, rarity, level requirements
-- **Network Data** - Server connections, faction markets
+- **Guild Information** - Complete roster, activity, and progression data
+- **Character Profiles** - Equipment, achievements, statistics, and performance metrics  
+- **Market Data** - Real-time auction house snapshots and item information
+- **Activity Logs** - Comprehensive usage tracking and analytics via Supabase
 
-### Data Quality & Storage
+### API Coverage & Capabilities
 
-- **Coverage**: 200+ US/EU realms available via API
-- **Active Monitoring**: Currently tracking 10 US realms with automatic rotation
-- **Item Coverage**: Top 100-200 most-traded items per realm (configurable)
-- **Frequency**: Hourly snapshots via Blizzard API
-- **History**: 30-day aggregate snapshots, 7-day detailed price distributions
-- **Storage**: PostgreSQL with aggregate market snapshots
-- **Data Points**: 2,200+ market snapshots collected daily
+- **Realm Coverage**: All US/EU realms supported via Blizzard Battle.net API
+- **WoW Versions**: Full support for both Classic and Retail with proper namespace handling
+- **Data Freshness**: Real-time guild and character data, hourly auction house updates
+- **Caching**: Redis optimization for frequently accessed guild and character data
+- **Storage**: Supabase for activity tracking with 30-day retention
 
-### New: Aggregate Market Data (2025)
+### Guild Analytics Capabilities
 
-The system now captures comprehensive market aggregates instead of individual price points:
+The system provides comprehensive guild analysis through multiple data sources:
 
-- **Market Snapshots**: Total quantity, auction count, unique sellers per item
-- **Price Statistics**: Min, max, average, median, standard deviation
-- **Market Concentration**: Top seller percentage, seller distribution
-- **Price Distributions**: Detailed breakdown by price points
-- **Market Velocity**: Turnover rates, listing changes, estimated sales
+- **Member Tracking**: Real-time roster data with character progression metrics
+- **Performance Analysis**: Equipment optimization, achievement tracking, activity patterns
+- **Raid Progression**: Visual charts showing team advancement and performance trends
+- **AI Insights**: GPT-4o-mini powered recommendations for guild improvement strategies
 
-### Current Limitations
+### Current System Features
 
-⚠️ **Important for Researchers:**
+✅ **Optimized for Guild Management:**
 
-1. **API Rate Limits**: Blizzard API provides hourly snapshots, limiting real-time analysis
+1. **Real-time Data**: Direct Blizzard API integration for current guild and member information
 
-2. **Item Selection**: Tracks top 100-200 most-traded items per realm (configurable via `top_items` parameter)
+2. **AI-Enhanced Analysis**: OpenAI integration provides intelligent insights and recommendations
 
-3. **Resource Constraints**: Security limits prevent tracking all items across all realms simultaneously
+3. **Visual Reports**: Matplotlib/seaborn chart generation without external dependencies
 
-4. **Historical Depth**: 30-day retention for aggregate data, 7-day for detailed distributions
+4. **Activity Monitoring**: Comprehensive Supabase logging for usage analytics and performance tracking
 
-To customize for your research:
-- Call `update_historical_database` with specific parameters:
-  - `realms`: Target specific servers (e.g., `"mal-ganis:us,kiljaeden:us"`)
-  - `top_items`: Adjust item coverage (max 500)
-  - `include_all_items`: Track all items for a realm (resource intensive)
-- Use `query_aggregate_market_data` for different analyses:
-  - `query_type`: "top_items", "market_depth", "price_trends", "market_velocity"
-- Deploy your own instance for unlimited access
+5. **Multi-Version Support**: Handles both Classic and Retail WoW with appropriate API namespaces
 
-## 🚀 Quick Start for Researchers
+Guild officers can leverage these tools for:
+- **Member recruitment** and retention analysis
+- **Raid team optimization** and progression tracking  
+- **Performance monitoring** and improvement recommendations
+- **Market opportunities** for guild funding strategies
 
-### Quick Connection for Claude.ai
+## 🚀 Quick Start
+
+### Quick Connection for Guild Officers
 
 Connect directly using this MCP endpoint:
 ```
@@ -242,39 +252,44 @@ https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/mcp/
 
 ### Option 1: Connect via MCP Client (Recommended)
 
-Researchers can directly connect to our hosted MCP endpoint without local installation:
+Guild officers can directly connect to our hosted MCP endpoint without local installation:
 
 ```python
 from fastmcp import Client
 
-# Connect to the research server
+# Connect to the guild analytics server
 async with Client("https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/mcp/") as client:
-    # List available research tools
+    # List available guild tools
     tools = await client.list_tools()
     
-    # Execute analysis
+    # Analyze your guild performance
     result = await client.call_tool(
-        "analyze_market_opportunities",
-        {"realm_slug": "stormrage", "region": "us"}
+        "analyze_guild_performance",
+        {
+            "guild_name": "YourGuildName", 
+            "realm_slug": "stormrage", 
+            "region": "us"
+        }
     )
 ```
 
 **Benefits:**
 - No local setup required
-- Always up-to-date with latest analysis methods
-- Automatic scaling for large datasets
-- Maintained infrastructure
+- Always up-to-date with latest AI analysis methods  
+- Automatic chart generation and visualization
+- Maintained infrastructure with real-time monitoring
 
 ### Option 2: Local Installation
 
-For researchers who need custom modifications or offline analysis:
+For guild officers who need custom modifications or enhanced privacy:
 
 #### Prerequisites
 
-- Python 3.11+ with scientific computing libraries
-- Blizzard API Credentials ([Academic Access](https://develop.battle.net/access/))
-- PostgreSQL for data persistence (optional)
-- Redis for real-time caching (optional)
+- Python 3.12+ with data science libraries
+- Blizzard API Credentials ([Developer Access](https://develop.battle.net/access/))
+- OpenAI API Key for AI-powered insights
+- Redis for caching (optional)
+- Supabase account for activity tracking (optional)
 
 #### Installation
 
@@ -292,95 +307,90 @@ pip install -r requirements.txt
 
 # Configure environment
 cp .env.example .env
-# Add your Blizzard API credentials to .env
-# Set WOW_VERSION=classic for WoW Classic or WOW_VERSION=retail for regular WoW
+# Add your API credentials to .env:
+# - BATTLE_NET_CLIENT_ID and BATTLE_NET_CLIENT_SECRET
+# - OPENAI_API_KEY for AI insights
+# - SUPABASE_URL and SUPABASE_KEY for activity tracking
 
 # Start the server
-python analysis_mcp_server.py
+python app/mcp_server_fastmcp.py
 ```
 
 ## 📖 Usage Examples
 
-### Market Efficiency Analysis
+### Guild Performance Analysis
 
 ```python
-# Test for arbitrage opportunities across servers
-opportunities = await analyze_market_opportunities(
+# Comprehensive guild analysis with AI insights
+guild_analysis = await analyze_guild_performance(
+    guild_name="YourGuildName",
     realm_slug="stormrage",
     region="us"
 )
 
-# Results include statistical significance tests
-print(f"Arbitrage profit margin: {opportunities['profit_margin']}%")
-print(f"Statistical confidence: {opportunities['confidence_level']}")
+# AI-powered insights and recommendations
+print(f"Guild Score: {guild_analysis['overall_score']}/10")
+print(f"AI Recommendations: {guild_analysis['ai_insights']}")
+print(f"Member Activity: {guild_analysis['activity_summary']}")
 ```
 
-### Time Series Forecasting
+### Member Performance Tracking
 
 ```python
-# Predict future prices using historical data
-predictions = await predict_market_trends(
-    item_id=168487,  # Zin'anthid
+# Analyze individual member performance
+member_analysis = await analyze_member_performance(
+    character_name="PlayerName",
     realm_slug="area-52",
-    forecast_periods=24  # 24 hours ahead
+    region="us"
 )
 
-# Access prediction intervals
-for forecast in predictions['forecasts']:
-    print(f"Time: {forecast['timestamp']}")
-    print(f"Predicted Price: {forecast['price']} ± {forecast['std_dev']}")
+# Equipment and progression details
+print(f"Item Level: {member_analysis['average_item_level']}")
+print(f"Mythic+ Score: {member_analysis['mythic_plus_score']}")
+print(f"Recent Achievements: {member_analysis['recent_achievements']}")
 ```
 
-### Volatility Analysis
+### Raid Progress Visualization
 
 ```python
-# Analyze price volatility for risk assessment
-analysis = await analyze_with_details(
-    analysis_type="volatility",
-    realm_slug="stormrage",
-    top_n=50
-)
-
-# Returns GARCH model parameters and volatility clusters
-print(f"Average volatility: {analysis['avg_volatility']}%")
-print(f"Volatility clusters detected: {analysis['cluster_count']}")
-```
-
-### Market Depth Analysis (New)
-
-```python
-# Query aggregate market data for volume analysis
-market_data = await query_aggregate_market_data(
+# Generate visual raid progression charts
+chart = await generate_raid_progress_chart(
+    guild_name="YourGuildName",
     realm_slug="stormrage",
     region="us",
-    query_type="top_items",
-    limit=20
+    raid_tier="current"
 )
 
-# Analyze specific item's market depth
-depth_analysis = await query_aggregate_market_data(
-    realm_slug="stormrage",
-    region="us",
-    query_type="market_depth",
-    item_id="168487"  # Zin'anthid
-)
-
-# Track market velocity and turnover
-velocity = await query_aggregate_market_data(
-    query_type="market_velocity",
-    realm_slug="area-52",
-    hours=24
-)
+# Returns matplotlib chart as PNG for sharing
+print(f"Chart saved: {chart['chart_path']}")
+print(f"Progress Summary: {chart['progress_summary']}")
 ```
 
-## 🔌 MCP Integration for Research Clients
+### Market Opportunities for Guild Funding
+
+```python
+# Find profitable market opportunities
+opportunities = await find_market_opportunities(
+    realm_slug="stormrage",
+    region="us",
+    min_profit_margin=20
+)
+
+# Help fund guild activities through market analysis
+for opportunity in opportunities['profitable_items']:
+    print(f"Item: {opportunity['item_name']}")
+    print(f"Profit Margin: {opportunity['profit_percentage']}%")
+    print(f"Potential Daily Profit: {opportunity['estimated_profit']}g")
+```
+
+## 🔌 MCP Integration for Guild Management
 
 ### Supported MCP Clients
 
-Researchers can connect using any MCP-compatible client:
+Guild officers can connect using any MCP-compatible client:
 
-- **Claude Desktop** - For interactive analysis and exploration
-- **Python FastMCP** - For programmatic research workflows
+- **Claude Desktop** - For interactive guild analysis and AI-powered insights
+- **Python FastMCP** - For programmatic guild management workflows
 - **Custom MCP Clients** - Any client implementing the MCP protocol
 
 ### Connection Details
@@ -388,61 +398,75 @@ Researchers can connect using any MCP-compatible client:
 ```yaml
 Server Endpoint: https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/mcp/
 Protocol: MCP 2.0 (HTTP Transport with SSE)
-Authentication: None required for public research data
+Authentication: None required for public guild data
 Rate Limits: 100 requests/minute per client
+Features: AI insights, chart generation, real-time activity tracking
 ```
 
-### Example: Jupyter Notebook Integration
+### Example: Guild Management Notebook
 
 ```python
 import asyncio
 from fastmcp import Client
-import pandas as pd
+import matplotlib.pyplot as plt
 
-async def fetch_market_data(realm, region="us"):
-    """Fetch market data for research analysis"""
+async def analyze_guild_comprehensive(guild_name, realm, region="us"):
+    """Comprehensive guild analysis workflow"""
     async with Client("https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/mcp/") as client:
-        # Get historical data
-        historical = await client.call_tool(
-            "get_historical_data",
-            {"realm_slug": realm, "region": region}
+        # Get guild performance analysis
+        performance = await client.call_tool(
+            "analyze_guild_performance",
+            {
+                "guild_name": guild_name, 
+                "realm_slug": realm, 
+                "region": region
+            }
         )
         
-        # Convert to DataFrame for analysis
-        df = pd.DataFrame(historical['data'])
-        return df
+        # Generate raid progress chart
+        chart = await client.call_tool(
+            "generate_raid_progress_chart",
+            {
+                "guild_name": guild_name,
+                "realm_slug": realm,
+                "region": region
+            }
+        )
+        
+        return performance, chart
 
-# Use in research
-df = await fetch_market_data("stormrage")
-df.describe()  # Statistical summary
+# Use for guild management
+performance, chart = await analyze_guild_comprehensive("YourGuild", "stormrage")
+print(f"Guild Health Score: {performance['overall_score']}")
+print(f"AI Recommendations: {performance['ai_insights']}")
 ```
 
-## 📊 Data Export
+## 📊 Data Export & Sharing
 
-The server supports multiple export formats for research:
+The server supports multiple export formats for guild management:
 
-- **CSV** - For statistical software (R, Stata, SPSS)
-- **JSON** - For programmatic analysis
-- **Parquet** - For big data frameworks
-- **SQL** - Direct database access for complex queries
+- **PNG Charts** - Visual raid progress and performance charts for sharing
+- **JSON Reports** - Detailed guild and member analysis data
+- **CSV Data** - Member statistics and performance metrics
+- **Activity Logs** - Comprehensive usage analytics via Supabase
 
-## 🤝 Contributing to Research
+## 🤝 Contributing to Guild Analytics
 
-We welcome contributions from researchers:
+We welcome contributions from the WoW community:
 
-1. **Empirical Studies** - Use our data for your research
-2. **Methodological Improvements** - Enhance analysis algorithms
-3. **New Metrics** - Propose novel economic indicators
-4. **Validation** - Cross-validate findings with other virtual economies
+1. **Feature Requests** - Suggest new guild analytics tools
+2. **AI Improvements** - Enhance recommendation algorithms
+3. **Visualization Updates** - Improve chart types and layouts
+4. **Community Feedback** - Share how you use the analytics
 
 ### Citation
 
-If you use this tool in your research, please cite:
+If you use this tool for guild management or research, please reference:
 
 ```bibtex
-@software{mcp_wowconomics,
+@software{wow_guild_analytics,
   author = {Mott, Noah},
-  title = {WoW Economic Analysis MCP Server},
+  title = {WoW Guild Analytics MCP Server},
   year = {2025},
   publisher = {GitHub},
   url = {https://github.com/noahmott/mcp_wowconomics_server}
@@ -451,20 +475,21 @@ If you use this tool in your research, please cite:
 
 ## 📜 License
 
-This project is licensed under the MIT License, encouraging academic use and collaboration.
+This project is licensed under the MIT License, encouraging community use and collaboration.
 
 ## 🙏 Acknowledgments
 
-- **Blizzard Entertainment** - For providing API access to researchers
-- **FastMCP Team** - For the Model Context Protocol implementation
-- **Academic Community** - For virtual economy research foundations
+- **Blizzard Entertainment** - For providing comprehensive Battle.net API access
+- **FastMCP Team** - For the Model Context Protocol implementation  
+- **OpenAI** - For GPT-4o-mini integration enabling AI-powered guild insights
+- **WoW Community** - For feedback and feature requests
 
 ---
 
 <div align="center">
 
-**Advancing Virtual Economy Research Through Open Data**
+**Empowering Guild Leadership Through AI-Enhanced Analytics**
 
-[Documentation](https://github.com/noahmott/mcp_wowconomics_server/wiki) • [Dataset Requests](https://github.com/noahmott/mcp_wowconomics_server/issues) • [Research Collaboration](mailto:noah.mott1@gmail.com)
+[Issues & Features](https://github.com/noahmott/mcp_wowconomics_server/issues) • [Guild Analytics Support](mailto:noah.mott1@gmail.com) • [Community Discord](#)
 
 </div>
