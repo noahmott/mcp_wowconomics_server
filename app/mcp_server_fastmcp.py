@@ -488,7 +488,7 @@ async def lookup_item_details(
     
     Args:
         item_id: The item ID to look up
-        game_version: WoW version ('retail', 'classic', or 'classic-era')
+        game_version: WoW version ('retail' or 'classic' only - classic-era servers currently unavailable)
     
     Returns:
         Item details including name, description, quality, etc.
@@ -549,7 +549,7 @@ async def lookup_multiple_items(
     
     Args:
         item_ids: List of item IDs to look up
-        game_version: WoW version ('retail', 'classic', or 'classic-era')
+        game_version: WoW version ('retail' or 'classic' only - classic-era servers currently unavailable)
     
     Returns:
         Dictionary of item details keyed by item ID
@@ -609,7 +609,7 @@ async def get_classic_realm_id(
     
     Args:
         realm: Server realm name
-        game_version: WoW version ('classic' or 'classic-era')
+        game_version: WoW version ('classic' only - classic-era servers currently unavailable)
     
     Returns:
         Realm information including connected realm ID
@@ -722,8 +722,8 @@ async def get_auction_house_snapshot(
         
         connected_realm_id = None
         
-        # First check if it's a known Classic realm
-        if game_version in ["classic", "classic-era"] and realm.lower() in KNOWN_CLASSIC_REALMS:
+        # First check if it's a known Classic realm (classic-era currently unavailable)
+        if game_version == "classic" and realm.lower() in KNOWN_CLASSIC_REALMS:
             connected_realm_id = KNOWN_CLASSIC_REALMS[realm.lower()]
             logger.info(f"Using known realm ID for {realm}: {connected_realm_id}")
         else:
@@ -847,9 +847,10 @@ async def analyze_item_market_history(
 async def test_classic_auction_house() -> Dict[str, Any]:
     """
     Test Classic auction house with known working realm IDs
+    Note: Classic Era (classic-era namespace) servers are currently unavailable
     
     Returns:
-        Test results for known Classic realms
+        Test results for known Classic Progression realms
     """
     try:
         logger.info("Testing Classic auction house with known realm IDs")
@@ -864,8 +865,8 @@ async def test_classic_auction_house() -> Dict[str, Any]:
         
         results = {}
         
-        # Test both classic and classic-era namespaces
-        for game_version in ["classic", "classic-era"]:
+        # Test classic namespace only (classic-era currently unavailable)
+        for game_version in ["classic"]:
             results[game_version] = {}
             
             async with BlizzardAPIClient(game_version=game_version) as client:
@@ -893,7 +894,8 @@ async def test_classic_auction_house() -> Dict[str, Any]:
         
         return {
             "test_results": results,
-            "message": "Classic auction house connectivity test complete for both namespaces"
+            "message": "Classic auction house connectivity test complete (Classic Era servers currently unavailable)",
+            "note": "Only Classic Progression servers are accessible - Classic Era (classic-era namespace) returns 'Resource not found'"
         }
         
     except Exception as e:
