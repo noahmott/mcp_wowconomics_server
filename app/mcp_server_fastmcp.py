@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 from fastmcp import FastMCP
 
 # Local imports
-from .api.blizzard_client import BlizzardAPIClient, BlizzardAPIError
+from .api.blizzard_client import BlizzardAPIClient, KNOWN_RETAIL_REALMS as RETAIL_REALMS, BlizzardAPIError
 from .api.guild_optimizations import OptimizedGuildFetcher
 from .services.activity_logger import ActivityLogger, initialize_activity_logger
 from .services.auction_aggregator import AuctionAggregatorService
@@ -72,28 +72,8 @@ KNOWN_CLASSIC_REALMS = {
     "old-blanchy": 4372
 }
 
-# Known Retail realm IDs (based on common realms)
-KNOWN_RETAIL_REALMS = {
-    # US Realms
-    "area-52": 3676,
-    "stormrage": 60,
-    "illidan": 57,
-    "tichondrius": 11,
-    "mal'ganis": 3684,
-    "moon-guard": 3675,
-    "wyrmrest-accord": 1171,
-    "thrall": 3678,
-    "dalaran": 55,
-    "zul'jin": 61,
-    # EU Realms
-    "draenor": 1596,
-    "silvermoon": 1096,
-    "tarren-mill": 1303,
-    "kazzak": 1305,
-    "ragnaros": 1587,
-    "twisting-nether": 1615,
-    "argent-dawn": 1597
-}
+# Use the realm IDs from blizzard_client
+KNOWN_RETAIL_REALMS = RETAIL_REALMS
 
 # Decorator for automatic Supabase logging
 def with_supabase_logging(func):
@@ -1172,6 +1152,10 @@ async def capture_economy_snapshot(
                         # Try hardcoded IDs for Classic
                         if game_version == "classic" and realm.lower() in KNOWN_CLASSIC_REALMS:
                             connected_realm_id = KNOWN_CLASSIC_REALMS[realm.lower()]
+                        # Try hardcoded IDs for Retail
+                        elif game_version == "retail" and realm.lower() in KNOWN_RETAIL_REALMS:
+                            connected_realm_id = KNOWN_RETAIL_REALMS[realm.lower()]
+                            logger.info(f"Using known realm ID {connected_realm_id} for {realm}")
                         else:
                             results[realm] = {"status": "error", "message": "Could not find connected realm ID"}
                             continue

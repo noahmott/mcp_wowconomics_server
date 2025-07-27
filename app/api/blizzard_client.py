@@ -18,6 +18,33 @@ from ..models.member import Member
 
 logger = logging.getLogger(__name__)
 
+# Known retail realm connected IDs (for fallback when API search fails)
+KNOWN_RETAIL_REALMS = {
+    # US Realms
+    "area-52": 3676,
+    "stormrage": 60,
+    "illidan": 57,
+    "tichondrius": 11,
+    "mal'ganis": 3681,
+    "zul'jin": 3683,
+    "moonguard": 3675,
+    "wyrmrest-accord": 1171,
+    "thrall": 3678,
+    "frostmourne": 3725,
+    "barthilas": 3723,
+    "ragnaros": 3726,
+    
+    # EU Realms  
+    "draenor": 1403,
+    "kazzak": 1305,
+    "twisting-nether": 1400,
+    "ragnaros-eu": 1301,
+    "tarren-mill": 1303,
+    "silvermoon": 1096,
+    "ravencrest": 1329,
+    "argent-dawn": 3702
+}
+
 
 class BlizzardAPIError(Exception):
     """Custom exception for Blizzard API errors"""
@@ -371,13 +398,17 @@ class BlizzardAPIClient:
             
             # Try connected realm search endpoint (works for both retail and classic)
             search_endpoint = f"/data/wow/search/connected-realm"
+            # Use the proper search syntax for realm name
             params = {
-                f"realms.name.{self.locale}": realm_slug,
-                "_pageSize": 100
+                "realms.slug": realm_slug.lower(),
+                "_pageSize": 100,
+                "orderby": "id"
             }
             
             try:
+                logger.info(f"Searching connected realms with params: {params}")
                 search_results = await self.make_request(search_endpoint, params)
+                logger.info(f"Search response: {search_results.get('pageCount', 0)} pages, {len(search_results.get('results', []))} results")
                 
                 if search_results.get('results'):
                     logger.info(f"Connected realm search returned {len(search_results['results'])} results")
@@ -409,10 +440,24 @@ class BlizzardAPIClient:
                                     'type': realm.get('type', {})
                                 }
                 
-                logger.warning(f"No connected realm found for {realm_slug}")
+                logger.warning(f"No connected realm found for {realm_slug} in search results")
+                
+                # If retail and we have a known realm ID, use it
+                if self.game_version == "retail":
+                    if realm_slug.lower() in KNOWN_RETAIL_REALMS:
+                        logger.info(f"Using known realm ID for {realm_slug}")
+                        return {
+                            'name': realm_slug.title(),
+                            'slug': realm_slug.lower(),
+                            'connected_realm': {
+                                'id': KNOWN_RETAIL_REALMS[realm_slug.lower()],
+                                'href': f"/data/wow/connected-realm/{KNOWN_RETAIL_REALMS[realm_slug.lower()]}"
+                            }
+                        }
                 
             except Exception as search_error:
                 logger.error(f"Connected realm search failed: {str(search_error)}")
+                logger.error(f"Search error details: {type(search_error).__name__}")
             
             # If that also fails and it's classic, try the old search endpoint
             if self.game_version == "classic" and e.status_code == 404:
