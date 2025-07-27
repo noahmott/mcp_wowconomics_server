@@ -696,6 +696,113 @@ async def lookup_multiple_items(
 
 @mcp.tool()
 @with_supabase_logging
+async def get_realm_status(
+    realm: str,
+    game_version: str = "retail"
+) -> Dict[str, Any]:
+    """
+    Get realm status and information including connected realm ID
+    
+    Args:
+        realm: Server realm name (e.g., 'stormrage', 'area-52', 'mankrik')
+        game_version: WoW version ('retail' or 'classic')
+    
+    Returns:
+        Realm information including status, population, and connected realm ID
+    """
+    try:
+        logger.info(f"Getting realm status for {realm} ({game_version})")
+        
+        # Check if it's a known Classic realm
+        realm_lower = realm.lower()
+        if game_version == "classic" and realm_lower in KNOWN_CLASSIC_REALMS:
+            logger.info(f"Using known realm ID for {realm}: {KNOWN_CLASSIC_REALMS[realm_lower]}")
+            return {
+                "success": True,
+                "realm": realm,
+                "connected_realm_id": KNOWN_CLASSIC_REALMS[realm_lower],
+                "game_version": game_version,
+                "source": "hardcoded",
+                "status": "online",
+                "message": f"Found hardcoded ID for Classic realm {realm}"
+            }
+        
+        # Get realm info from API
+        async with BlizzardAPIClient(game_version=game_version) as client:
+            try:
+                # Get realm information
+                realm_info = await client._get_realm_info(realm)
+                
+                # Extract connected realm ID
+                connected_realm = realm_info.get('connected_realm', {})
+                connected_realm_id = None
+                
+                if isinstance(connected_realm, dict) and 'id' in connected_realm:
+                    connected_realm_id = connected_realm['id']
+                elif isinstance(connected_realm, int):
+                    connected_realm_id = connected_realm
+                else:
+                    # Try to extract ID from href if available
+                    href = connected_realm.get('href', '') if isinstance(connected_realm, dict) else ''
+                    if '/connected-realm/' in href:
+                        connected_realm_id = int(href.split('/connected-realm/')[-1].split('?')[0])
+                
+                # Build response
+                response = {
+                    "success": True,
+                    "realm": realm_info.get('name', realm),
+                    "slug": realm_info.get('slug', realm.lower()),
+                    "connected_realm_id": connected_realm_id,
+                    "game_version": game_version,
+                    "region": realm_info.get('region', {}).get('name', 'Unknown'),
+                    "timezone": realm_info.get('timezone', 'Unknown'),
+                    "type": realm_info.get('type', {}).get('name', 'Unknown'),
+                    "is_tournament": realm_info.get('is_tournament', False),
+                    "population": realm_info.get('population', {}).get('name', 'Unknown'),
+                    "status": "online"  # If we can fetch data, realm is online
+                }
+                
+                # Add connected realms info if available
+                if 'connected_realm' in realm_info and isinstance(realm_info['connected_realm'], dict):
+                    if 'realms' in realm_info['connected_realm']:
+                        response['connected_realms'] = [
+                            r.get('name', 'Unknown') for r in realm_info['connected_realm']['realms']
+                        ]
+                
+                return response
+                
+            except BlizzardAPIError as e:
+                if e.status_code == 404:
+                    return {
+                        "success": False,
+                        "error": f"Realm '{realm}' not found",
+                        "game_version": game_version,
+                        "message": "Please check the realm name and game version"
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": f"API error: {str(e)}",
+                        "game_version": game_version,
+                        "status_code": e.status_code
+                    }
+            except Exception as e:
+                logger.error(f"Failed to get realm status: {str(e)}")
+                return {
+                    "success": False,
+                    "error": f"Failed to get realm status: {str(e)}",
+                    "game_version": game_version
+                }
+        
+    except Exception as e:
+        logger.error(f"Error getting realm status: {str(e)}")
+        return {
+            "success": False,
+            "error": f"Error getting realm status: {str(e)}"
+        }
+
+@mcp.tool()
+@with_supabase_logging
 async def get_classic_realm_id(
     realm: str,
     game_version: str = "classic"

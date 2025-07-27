@@ -82,7 +82,7 @@ python app/mcp_server_fastmcp.py
 - **WoW Classic & Retail Support**: Full support for both Classic and Retail WoW with proper API namespaces
 - **Real-time Activity Tracking**: Supabase integration for comprehensive usage analytics and logging
 - **LangGraph Workflows**: Multi-step analysis chains for complex guild performance evaluations
-- **14 Comprehensive Tools**: 7 guild analytics + 7 market/economy tools including new snapshot features
+- **15 Comprehensive Tools**: 7 guild analytics + 8 market/economy tools including new snapshot features
 
 ## 📚 Overview
 
@@ -167,7 +167,7 @@ graph LR
 ## 🛠️ Complete Tool Reference
 
 <details>
-<summary><b>Click to view all 14 analytics tools</b></summary>
+<summary><b>Click to view all 15 analytics tools</b></summary>
 
 ### 🏰 Guild Analytics Tools (7)
 
@@ -180,10 +180,11 @@ graph LR
 | `compare_member_performance` | Side-by-side member comparisons | Comparative analysis with visualizations |
 | `test_supabase_connection` | Activity logging and monitoring | Connection status and usage analytics |
 
-### 📈 Market Intelligence Tools (7)
+### 📈 Market Intelligence Tools (8)
 
 | Tool | Purpose | Output Format |
 |------|---------|---------------|
+| `get_realm_status` | Realm status and connected realm ID lookup | Realm information with population and ID |
 | `get_auction_house_snapshot` | Current auction house data | Real-time market snapshots |
 | `capture_economy_snapshot` | Hourly economy data capture (new) | Snapshot results with item statistics |
 | `get_economy_trends` | Historical price trends (new) | 30-day price history for items |
