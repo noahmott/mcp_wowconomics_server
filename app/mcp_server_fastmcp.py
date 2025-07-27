@@ -481,13 +481,54 @@ async def get_auction_house_snapshot(
     try:
         logger.info(f"Getting auction house data for realm {realm} ({game_version})")
         
-        # Auction house functionality not yet implemented
-        logger.warning(f"Auction house API not implemented for realm {realm}")
-        return {
-            "error": "Auction house functionality is not yet implemented",
-            "message": "The Blizzard API client doesn't currently support auction house data retrieval"
-        }
+        async with BlizzardAPIClient(game_version=game_version) as client:
+            # Get connected realm ID from realm slug
+            realm_info = await client._get_realm_info(realm)
+            connected_realm_id = realm_info.get('connected_realm', {}).get('id')
             
+            if not connected_realm_id:
+                return {"error": f"Could not find connected realm ID for realm {realm}"}
+            
+            # Get current auction data
+            ah_data = await client.get_auction_house_data(connected_realm_id)
+            
+            if not ah_data or 'auctions' not in ah_data:
+                return {"error": "No auction data available"}
+            
+            # Aggregate auction data
+            aggregated = auction_aggregator.aggregate_auction_data(ah_data['auctions'])
+            
+            # Filter results if item search provided
+            if item_search:
+                if item_search.isdigit():
+                    # Search by item ID
+                    item_id = int(item_search)
+                    if item_id in aggregated:
+                        aggregated = {item_id: aggregated[item_id]}
+                else:
+                    # TODO: Implement item name search
+                    logger.warning("Item name search not yet implemented")
+            
+            # Sort by total market value and limit results
+            sorted_items = sorted(
+                aggregated.items(),
+                key=lambda x: x[1]['total_market_value'],
+                reverse=True
+            )[:max_results]
+            
+            return {
+                "success": True,
+                "realm": realm,
+                "connected_realm_id": connected_realm_id,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "total_items": len(aggregated),
+                "items_returned": len(sorted_items),
+                "market_data": dict(sorted_items)
+            }
+            
+    except BlizzardAPIError as e:
+        logger.error(f"Blizzard API error: {e.message}")
+        return {"error": f"API Error: {e.message}"}
     except Exception as e:
         logger.error(f"Error getting auction house data: {str(e)}")
         return {"error": f"Auction house data failed: {str(e)}"}
