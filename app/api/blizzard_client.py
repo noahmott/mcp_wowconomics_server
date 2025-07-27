@@ -360,8 +360,8 @@ class BlizzardAPIClient:
         
         if "members" in guild_roster:
             # Process more members but still limit to avoid timeout
-            members = guild_roster["members"][:20]  # Increased from 10 to 20
-            logger.info(f"Processing {len(members)} guild members")
+            members = guild_roster["members"][:50]  # Increased to 50 for better gear analysis
+            logger.info(f"Processing {len(members)} guild members out of {len(guild_roster['members'])} total")
             
             for member in members:
                 if errors_count >= max_errors:
@@ -381,17 +381,29 @@ class BlizzardAPIClient:
                         "level": character.get("level", 0),
                         "character_class": character.get("character_class", {}),
                         "playable_class": character.get("playable_class", {}),
-                        "playable_race": character.get("playable_race", {})
+                        "playable_race": character.get("playable_race", {}),
+                        "equipment_summary": {"average_item_level": 0, "total_items": 0}  # Default
                     }
                     
-                    # Try to get equipment data for better analysis
+                    # Try to get character profile which includes equipped_item_level
                     try:
-                        equipment_data = await self.get_character_equipment(character_realm, character_name)
-                        basic_info["equipment_summary"] = self._summarize_equipment(equipment_data)
-                        logger.debug(f"Got equipment for {character_name}: {basic_info['equipment_summary']['average_item_level']}")
+                        char_profile = await self.get_character_profile(character_realm, character_name)
+                        # The character profile directly includes equipped_item_level
+                        if "equipped_item_level" in char_profile:
+                            basic_info["equipped_item_level"] = char_profile["equipped_item_level"]
+                            basic_info["equipment_summary"]["average_item_level"] = char_profile["equipped_item_level"]
+                        
+                        # Add other useful fields from profile
+                        if "achievement_points" in char_profile:
+                            basic_info["achievement_points"] = char_profile["achievement_points"]
+                        if "last_login_timestamp" in char_profile:
+                            basic_info["last_login_timestamp"] = char_profile["last_login_timestamp"]
+                        if "active_spec" in char_profile:
+                            basic_info["active_spec"] = char_profile["active_spec"]
+                            
+                        logger.debug(f"Got profile for {character_name}: ilvl {basic_info.get('equipped_item_level', 0)}")
                     except BlizzardAPIError as e:
-                        logger.debug(f"Failed to get equipment for {character_name}: {e.message}")
-                        basic_info["equipment_summary"] = {"average_item_level": 0, "total_items": 0}
+                        logger.debug(f"Failed to get profile for {character_name}: {e.message}")
                         errors_count += 1
                     
                     members_data.append(basic_info)
