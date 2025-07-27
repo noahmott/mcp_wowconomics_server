@@ -18,10 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Create FastMCP server with proper configuration
-mcp = FastMCP(
-    name="WoW Guild Analytics MCP",
-    description="Comprehensive World of Warcraft guild analysis tools"
-)
+mcp = FastMCP("WoW Guild Analytics MCP")
 
 # Import the actual implementations
 from .api.blizzard_client import BlizzardAPIClient, BlizzardAPIError
