@@ -19,7 +19,6 @@ class ErrorType(Enum):
     DATA_NOT_FOUND = "data_not_found"
     NETWORK_ERROR = "network_error"
     PROCESSING_ERROR = "processing_error"
-    DISCORD_ERROR = "discord_error"
     DATABASE_ERROR = "database_error"
     VALIDATION_ERROR = "validation_error"
     TIMEOUT_ERROR = "timeout_error"
@@ -173,11 +172,6 @@ def get_error_suggestion(error_type: ErrorType) -> list[str]:
             "Please try again with different parameters.",
             "If the issue persists, contact support."
         ],
-        ErrorType.DISCORD_ERROR: [
-            "There was an issue with Discord integration.",
-            "Check if the bot has proper permissions in this channel.",
-            "Try the command again in a few moments."
-        ],
         ErrorType.DATABASE_ERROR: [
             "A database error occurred. Please try again.",
             "If the issue persists, contact an administrator.",
@@ -262,44 +256,3 @@ def format_error_for_user(error: WoWGuildError) -> str:
     return base_message
 
 
-def format_error_for_discord(error: WoWGuildError) -> Dict[str, Any]:
-    """Format error as Discord embed"""
-    import discord
-    
-    embed = discord.Embed(
-        title="❌ Error Occurred",
-        description=error.message,
-        color=discord.Color.red()
-    )
-    
-    # Add error type
-    embed.add_field(
-        name="Error Type",
-        value=error.error_type.value.replace('_', ' ').title(),
-        inline=True
-    )
-    
-    # Add suggestions
-    suggestions = get_error_suggestion(error.error_type)
-    if suggestions:
-        embed.add_field(
-            name="💡 Suggestions",
-            value="\n".join(f"• {s}" for s in suggestions[:3]),
-            inline=False
-        )
-    
-    # Add details if available
-    if error.details:
-        details_text = ""
-        for key, value in error.details.items():
-            if key not in ["traceback"] and value is not None:
-                details_text += f"**{key.title()}:** {value}\n"
-        
-        if details_text:
-            embed.add_field(
-                name="Details",
-                value=details_text[:1000],  # Discord field limit
-                inline=False
-            )
-    
-    return {"embed": embed}

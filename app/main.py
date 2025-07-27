@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI application
 app = FastAPI(
     title="WoW Guild Analysis MCP Server",
-    description="AI-powered World of Warcraft guild analytics with Discord integration",
+    description="AI-powered World of Warcraft guild analytics MCP server",
     version="1.0.0",
     lifespan=lifespan
 )

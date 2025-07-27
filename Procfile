@@ -1,3 +1,1 @@
-web: python analysis_mcp_server.py
-bot: python -m app.discord_bot
-release: python -c "from app.models.database import init_db; import asyncio; asyncio.run(init_db())"
+web: gunicorn app.main_redis:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120 --preload

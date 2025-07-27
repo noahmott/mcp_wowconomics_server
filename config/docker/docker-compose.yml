@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+  wow-mcp-server:
+    build:
+      context: ../..
+      dockerfile: config/docker/Dockerfile
+    container_name: wow-mcp-server
+    ports:
+      - "8000:8000"
+    environment:
+      - BLIZZARD_CLIENT_ID=${BLIZZARD_CLIENT_ID}
+      - BLIZZARD_CLIENT_SECRET=${BLIZZARD_CLIENT_SECRET}
+      - WOW_VERSION=${WOW_VERSION:-retail}
+      - DEBUG=${DEBUG:-false}
+      - REDIS_URL=redis://redis:6379
+      - SUPABASE_URL=${SUPABASE_URL:-https://qctcrhhqnzbfmfamzunf.supabase.co}
+      - SUPABASE_KEY=${SUPABASE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjdGNyaGhxbnpiZm1mYW16dW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM1ODQzNzksImV4cCI6MjA2OTE2MDM3OX0.g4DZxrD8XMFXYBPUhVeRKZLfRsfSc3_cajnAsenXV1I}
+      - PORT=8000
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - wow-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: wow-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wow-network
+
+  # RedisInsight for comprehensive Redis management
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: wow-redis-insight
+    ports:
+      - "8001:5540"
+    environment:
+      - RI_APP_PORT=5540
+      - RI_APP_HOST=0.0.0.0
+      - RI_REDIS_0_HOST=redis
+      - RI_REDIS_0_PORT=6379
+      - RI_REDIS_0_NAME=WoW Guild Cache
+      - RI_REDIS_0_DATABASE=0
+    volumes:
+      - redis_insight_data:/data
+      - ./config/scripts/configure_redisinsight.sh:/usr/local/bin/configure_redisinsight.sh:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - wow-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5540"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: >
+      sh -c "
+        ./docker-entry.sh &
+        sleep 20 &&
+        chmod +x /usr/local/bin/configure_redisinsight.sh &&
+        /usr/local/bin/configure_redisinsight.sh &&
+        wait
+      "
+
+  # Configuration helper service
+  redis-insight-configurator:
+    image: curlimages/curl:latest
+    container_name: wow-redis-insight-configurator
+    depends_on:
+      - redis-insight
+    networks:
+      - wow-network
+    command: >
+      sh -c "
+        echo 'Waiting for RedisInsight to be ready...' &&
+        sleep 30 &&
+        until curl -s http://redis-insight:5540/api/health > /dev/null; do
+          echo 'Waiting for RedisInsight API...'
+          sleep 5
+        done &&
+        echo 'Adding database connection...' &&
+        curl -X POST http://redis-insight:5540/api/instance \
+          -H 'Content-Type: application/json' \
+          -d '{
+            \"host\": \"redis\",
+            \"port\": 6379,
+            \"name\": \"WoW Guild Cache\",
+            \"connectionType\": \"STANDALONE\",
+            \"timeout\": 30000
+          }' &&
+        echo 'Database connection configured!'
+      "
+    restart: "no"
+
+volumes:
+  redis_data:
+    driver: local
+  redis_insight_data:
+    driver: local
+
+networks:
+  wow-network:
+    driver: bridge

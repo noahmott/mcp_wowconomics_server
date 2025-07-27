@@ -1,7 +1,7 @@
 {
   "name": "WoW Guild Analysis MCP Server",
-  "description": "AI-powered World of Warcraft guild analytics with Discord integration",
-  "keywords": ["fastapi", "mcp", "discord", "wow", "gaming", "analytics"],
+  "description": "AI-powered World of Warcraft guild analytics MCP server",
+  "keywords": ["fastapi", "mcp", "wow", "gaming", "analytics"],
   "website": "https://github.com/yourusername/wow-guild-mcp",
   "repository": "https://github.com/yourusername/wow-guild-mcp",
   "stack": "heroku-22",
@@ -10,10 +10,6 @@
   ],
   "formation": {
     "web": {
-      "quantity": 1,
-      "size": "basic"
-    },
-    "bot": {
       "quantity": 1,
       "size": "basic"
     }
@@ -32,16 +28,12 @@
       "description": "Blizzard Battle.net API Client Secret",
       "required": true
     },
-    "DISCORD_BOT_TOKEN": {
-      "description": "Discord bot token",
-      "required": true
+    "SUPABASE_URL": {
+      "description": "Supabase project URL for activity logging",
+      "required": false
     },
-    "OPENAI_API_KEY": {
-      "description": "OpenAI API key for classification and insights",
-      "required": true
-    },
-    "LANGSMITH_API_KEY": {
-      "description": "LangSmith API key for observability",
+    "SUPABASE_KEY": {
+      "description": "Supabase service role key",
       "required": false
     },
     "DEBUG": {

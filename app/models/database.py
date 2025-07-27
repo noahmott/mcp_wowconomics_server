@@ -9,19 +9,27 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import MetaData
 
 # Database URL from environment
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://localhost/wowguild")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///wowguild.db")
 
-# Handle Heroku database URL format
+# Handle Heroku database URL format (only for PostgreSQL)
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
 
-# Create async engine
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=os.getenv("DEBUG", "false").lower() == "true",
-    pool_size=20,
-    max_overflow=0,
-)
+# Create async engine with appropriate parameters for database type
+if DATABASE_URL.startswith("sqlite"):
+    # SQLite doesn't support pool parameters
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=os.getenv("DEBUG", "false").lower() == "true",
+    )
+else:
+    # PostgreSQL and other databases support pool parameters
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=os.getenv("DEBUG", "false").lower() == "true",
+        pool_size=20,
+        max_overflow=0,
+    )
 
 # Create session factory
 AsyncSessionLocal = sessionmaker(

@@ -14,6 +14,8 @@ import pandas as pd
 from PIL import Image
 import numpy as np
 
+from ..utils.wow_utils import get_localized_name, parse_class_info
+
 logger = logging.getLogger(__name__)
 
 
@@ -115,7 +117,7 @@ class ChartGenerator:
             # Update layout
             fig.update_layout(
                 title={
-                    "text": f"Raid Progression - {guild_info.get('name', 'Unknown Guild')}",
+                    "text": f"Raid Progression - {get_localized_name(guild_info)}",
                     "x": 0.5,
                     "font": {"size": 20, "color": "white"}
                 },
@@ -159,7 +161,7 @@ class ChartGenerator:
             colors = []
             
             for member in member_data:
-                name = member.get("name", "Unknown")
+                name = get_localized_name(member)
                 names.append(name)
                 
                 # Extract metric value
@@ -177,8 +179,7 @@ class ChartGenerator:
                 values.append(value)
                 
                 # Get class for coloring
-                char_class = member.get("character_class", {})
-                class_name = char_class.get("name", "Unknown") if isinstance(char_class, dict) else "Unknown"
+                class_name = parse_class_info(member.get("character_class"))
                 classes.append(class_name)
                 colors.append(self.class_colors.get(class_name, "#CCCCCC"))
             
@@ -241,8 +242,7 @@ class ChartGenerator:
             # Count classes
             class_counts = {}
             for member in member_data:
-                char_class = member.get("character_class", {})
-                class_name = char_class.get("name", "Unknown") if isinstance(char_class, dict) else "Unknown"
+                class_name = parse_class_info(member.get("character_class"))
                 class_counts[class_name] = class_counts.get(class_name, 0) + 1
             
             # Create pie chart

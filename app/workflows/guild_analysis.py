@@ -15,6 +15,8 @@ from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 import json
 
+from ..utils.wow_utils import get_localized_name, parse_class_info, parse_realm_info
+
 logger = logging.getLogger(__name__)
 
 
@@ -199,10 +201,11 @@ class GuildAnalysisWorkflow:
             member_data = state["member_data"]
             
             # Basic guild statistics
+            realm_info = parse_realm_info(guild_info.get("realm"))
             guild_summary = {
-                "name": guild_info.get("name", "Unknown"),
-                "realm": guild_info.get("realm", {}).get("name", "Unknown"),
-                "faction": guild_info.get("faction", {}).get("name", "Unknown"),
+                "name": get_localized_name(guild_info),
+                "realm": realm_info["name"],
+                "faction": get_localized_name(guild_info, "faction"),
                 "member_count": guild_info.get("member_count", len(member_data)),
                 "achievement_points": guild_info.get("achievement_points", 0),
                 "created_timestamp": guild_info.get("created_timestamp")
@@ -396,8 +399,7 @@ class GuildAnalysisWorkflow:
         """Get class distribution from member data"""
         distribution = {}
         for member in member_data:
-            char_class = member.get("character_class", {})
-            class_name = char_class.get("name", "Unknown") if isinstance(char_class, dict) else "Unknown"
+            class_name = parse_class_info(member.get("character_class"))
             distribution[class_name] = distribution.get(class_name, 0) + 1
         return distribution
     
@@ -409,10 +411,10 @@ class GuildAnalysisWorkflow:
             eq_summary = member.get("equipment_summary", {})
             if eq_summary.get("average_item_level", 0) > 450:  # High item level threshold
                 performers.append({
-                    "name": member.get("name", "Unknown"),
+                    "name": get_localized_name(member),
                     "item_level": eq_summary.get("average_item_level", 0),
                     "level": member.get("level", 0),
-                    "class": member.get("character_class", {}).get("name", "Unknown")
+                    "class": parse_class_info(member.get("character_class"))
                 })
         
         # Sort by item level
@@ -482,10 +484,10 @@ class GuildAnalysisWorkflow:
     def _summarize_character(self, member_data: Dict[str, Any]) -> Dict[str, Any]:
         """Summarize character information"""
         return {
-            "name": member_data.get("name", "Unknown"),
+            "name": get_localized_name(member_data),
             "level": member_data.get("level", 0),
-            "class": member_data.get("character_class", {}).get("name", "Unknown"),
-            "race": member_data.get("race", {}).get("name", "Unknown"),
+            "class": parse_class_info(member_data.get("character_class")),
+            "race": get_localized_name(member_data, "race"),
             "guild_rank": member_data.get("guild_rank", 999),
             "achievement_points": member_data.get("achievement_points", 0)
         }

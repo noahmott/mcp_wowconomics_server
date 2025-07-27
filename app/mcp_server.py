@@ -4,6 +4,7 @@ MCP Server Implementation for WoW Guild Analysis
 
 import os
 import logging
+from datetime import datetime
 from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -197,7 +198,8 @@ class WoWGuildMCPServer:
             realm: str,
             guild_name: str,
             sort_by: str = "guild_rank",
-            limit: int = 50
+            limit: int = 50,
+            quick_mode: bool = False
         ) -> Dict[str, Any]:
             """
             Get detailed guild member list with sorting options
@@ -215,9 +217,31 @@ class WoWGuildMCPServer:
                 logger.info(f"Getting member list for {guild_name} on {realm}")
                 
                 async with BlizzardAPIClient() as client:
-                    guild_data = await client.get_comprehensive_guild_data(realm, guild_name)
-                    
-                    members = guild_data.get("members_data", [])[:limit]
+                    if quick_mode:
+                        # Use optimized fetcher for quick mode
+                        from .api.guild_optimizations import OptimizedGuildFetcher
+                        fetcher = OptimizedGuildFetcher(client)
+                        roster_data = await fetcher.get_guild_roster_basic(realm, guild_name)
+                        
+                        # Format members for response
+                        members_raw = roster_data["members"][:limit]
+                        members = []
+                        for m in members_raw:
+                            char = m.get("character", {})
+                            members.append({
+                                "name": char.get("name"),
+                                "level": char.get("level"),
+                                "character_class": char.get("playable_class", {}).get("name", "Unknown"),
+                                "guild_rank": m.get("rank")
+                            })
+                        total_members = roster_data["member_count"]
+                        guild_info = roster_data.get("guild", {})
+                    else:
+                        # Full comprehensive data
+                        guild_data = await client.get_comprehensive_guild_data(realm, guild_name)
+                        members = guild_data.get("members_data", [])[:limit]
+                        total_members = len(guild_data.get("members_data", []))
+                        guild_info = guild_data.get("guild_info", {})
                     
                     # Sort members based on criteria
                     if sort_by == "guild_rank":
@@ -232,10 +256,12 @@ class WoWGuildMCPServer:
                         "guild_name": guild_name,
                         "realm": realm,
                         "members": members,
-                        "total_members": len(members),
+                        "members_returned": len(members),
+                        "total_members": total_members,
                         "sorted_by": sort_by,
-                        "guild_summary": guild_data.get("guild_info", {}),
-                        "timestamp": guild_data["fetch_timestamp"]
+                        "quick_mode": quick_mode,
+                        "guild_summary": guild_info,
+                        "timestamp": datetime.utcnow().isoformat()
                     }
                     
             except BlizzardAPIError as e:
@@ -380,7 +406,41 @@ def setup_mcp_server(app: FastAPI):
             params = request.get("params", {})
             request_id = request.get("id")
             
-            if method == "tools/list":
+            if method == "initialize":
+                # Handle MCP initialization
+                import uuid
+                session_id = str(uuid.uuid4()).replace("-", "")
+                
+                # Store session in app state for validation
+                if not hasattr(app, "mcp_sessions"):
+                    app.mcp_sessions = {}
+                app.mcp_sessions[session_id] = {
+                    "created": datetime.utcnow(),
+                    "client_info": params.get("clientInfo", {})
+                }
+                
+                from fastapi.responses import JSONResponse
+                response = JSONResponse(
+                    content={
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "result": {
+                            "protocolVersion": "2024-11-05",
+                            "serverInfo": {
+                                "name": "wow-guild-mcp",
+                                "version": "1.0.0"
+                            },
+                            "capabilities": {
+                                "tools": {}
+                            }
+                        }
+                    },
+                    headers={"mcp-session-id": session_id}
+                )
+                
+                return response
+            
+            elif method == "tools/list":
                 tools = []
                 for name, func in mcp_server.mcp.tools.items():
                     tools.append({

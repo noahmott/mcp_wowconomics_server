@@ -6,6 +6,7 @@ import asyncio
 import json
 import hashlib
 import logging
+import os
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Union
 import redis.asyncio as aioredis
@@ -17,6 +18,7 @@ from ..models.wow_cache import (
     GuildCache, TokenPriceHistory, DataCollectionLog
 )
 from ..api.blizzard_client import BlizzardAPIClient, BlizzardAPIError
+from ..utils.namespace_utils import get_dynamic_namespace, get_static_namespace
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,7 @@ class WoWDataStagingService:
         self.db = db_session
         self.redis = redis_client
         self.api_client = None  # Will be initialized when needed
+        self.game_version = os.getenv("WOW_VERSION", "classic").lower()  # 'retail' or 'classic'
         
         # Cache TTL settings (in seconds)
         self.cache_ttl = {
@@ -40,7 +43,7 @@ class WoWDataStagingService:
         }
     
     async def get_data(self, data_type: str, cache_key: str, region: str = 'us', 
-                      force_refresh: bool = False) -> Optional[Dict[str, Any]]:
+                      force_refresh: bool = False, game_version: str = None) -> Optional[Dict[str, Any]]:
         """
         Get data with intelligent fallback strategy:
         1. Redis cache (fastest)
@@ -49,9 +52,12 @@ class WoWDataStagingService:
         4. Synthetic data (educational examples)
         """
         
+        # Use provided game_version or default to instance's game_version
+        version = game_version or self.game_version
+        
         # Step 1: Try Redis cache first (unless force refresh)
         if not force_refresh:
-            redis_key = f"{data_type}:{region}:{cache_key}"
+            redis_key = f"{data_type}:{region}:{cache_key}:{version}"
             cached_data = await self.redis.get(redis_key)
             if cached_data:
                 logger.debug(f"Cache hit (Redis): {redis_key}")
@@ -59,11 +65,11 @@ class WoWDataStagingService:
         
         # Step 2: Try PostgreSQL cache
         if not force_refresh:
-            db_data = await self._get_from_database(data_type, cache_key, region)
+            db_data = await self._get_from_database(data_type, cache_key, region, version)
             if db_data:
                 logger.debug(f"Cache hit (PostgreSQL): {data_type}:{cache_key}")
                 # Refresh Redis cache
-                await self._cache_to_redis(data_type, cache_key, region, db_data)
+                await self._cache_to_redis(data_type, cache_key, region, db_data, version)
                 return db_data
         
         # Step 3: Try live API
@@ -76,7 +82,7 @@ class WoWDataStagingService:
             if live_data:
                 logger.info(f"Live API success: {data_type}:{cache_key}")
                 # Cache in both systems
-                await self._cache_data(data_type, cache_key, region, live_data)
+                await self._cache_data(data_type, cache_key, region, live_data, version)
                 return live_data
                 
         except Exception as e:
@@ -88,7 +94,7 @@ class WoWDataStagingService:
         synthetic_data = await self._generate_example_data(data_type, cache_key, region)
         return synthetic_data
     
-    async def _get_from_database(self, data_type: str, cache_key: str, region: str) -> Optional[Dict[str, Any]]:
+    async def _get_from_database(self, data_type: str, cache_key: str, region: str, game_version: str) -> Optional[Dict[str, Any]]:
         """Retrieve data from PostgreSQL cache"""
         try:
             # Check if data is still valid (not expired)
@@ -99,6 +105,7 @@ class WoWDataStagingService:
                     WoWDataCache.data_type == data_type,
                     WoWDataCache.cache_key == cache_key,
                     WoWDataCache.region == region,
+                    WoWDataCache.game_version == game_version,
                     WoWDataCache.is_valid == True,
                     # Either no expiration or not expired
                     (WoWDataCache.expires_at.is_(None)) | (WoWDataCache.expires_at > now)
@@ -121,27 +128,27 @@ class WoWDataStagingService:
             logger.error(f"Database cache error: {str(e)}")
             return None
     
-    async def _cache_data(self, data_type: str, cache_key: str, region: str, data: Dict[str, Any]):
+    async def _cache_data(self, data_type: str, cache_key: str, region: str, data: Dict[str, Any], game_version: str):
         """Cache data in both Redis and PostgreSQL"""
         try:
             # Cache in Redis
-            await self._cache_to_redis(data_type, cache_key, region, data)
+            await self._cache_to_redis(data_type, cache_key, region, data, game_version)
             
             # Cache in PostgreSQL
-            await self._cache_to_database(data_type, cache_key, region, data)
+            await self._cache_to_database(data_type, cache_key, region, data, game_version)
             
         except Exception as e:
             logger.error(f"Caching error: {str(e)}")
     
-    async def _cache_to_redis(self, data_type: str, cache_key: str, region: str, data: Dict[str, Any]):
+    async def _cache_to_redis(self, data_type: str, cache_key: str, region: str, data: Dict[str, Any], game_version: str):
         """Cache data in Redis with TTL"""
-        redis_key = f"{data_type}:{region}:{cache_key}"
+        redis_key = f"{data_type}:{region}:{cache_key}:{game_version}"
         ttl = self.cache_ttl.get(data_type, 3600)
         
         await self.redis.setex(redis_key, ttl, json.dumps(data, default=str))
         logger.debug(f"Cached to Redis: {redis_key} (TTL: {ttl}s)")
     
-    async def _cache_to_database(self, data_type: str, cache_key: str, region: str, data: Dict[str, Any]):
+    async def _cache_to_database(self, data_type: str, cache_key: str, region: str, data: Dict[str, Any], game_version: str):
         """Cache data in PostgreSQL with expiration"""
         try:
             # Calculate expiration time
@@ -153,6 +160,7 @@ class WoWDataStagingService:
                 data_type=data_type,
                 cache_key=cache_key,
                 region=region,
+                game_version=game_version,
                 data=data.get('data', data),  # Handle nested data structure
                 expires_at=expires_at,
                 api_source='blizzard'
@@ -170,19 +178,25 @@ class WoWDataStagingService:
     async def _fetch_from_api(self, data_type: str, cache_key: str, region: str) -> Optional[Dict[str, Any]]:
         """Fetch data from live Blizzard API"""
         
+        # Determine namespace based on data type and game version
+        if data_type in ['realm', 'token', 'auction']:
+            data_namespace = get_dynamic_namespace(region, self.game_version)
+        else:
+            data_namespace = get_static_namespace(region, self.game_version)
+        
         if data_type == 'realm':
             if cache_key == 'index':
                 endpoint = "/data/wow/realm/index"
-                params = {"namespace": f"dynamic-{region}", "locale": "en_US"}
+                params = {"namespace": data_namespace, "locale": "en_US"}
                 return await self.api_client.make_request(endpoint, params)
             else:
                 endpoint = f"/data/wow/realm/{cache_key}"
-                params = {"namespace": f"dynamic-{region}", "locale": "en_US"}
+                params = {"namespace": data_namespace, "locale": "en_US"}
                 return await self.api_client.make_request(endpoint, params)
         
         elif data_type == 'token':
             endpoint = "/data/wow/token/index"
-            params = {"namespace": f"dynamic-{region}", "locale": "en_US"}
+            params = {"namespace": data_namespace, "locale": "en_US"}
             return await self.api_client.make_request(endpoint, params)
         
         elif data_type == 'guild':
@@ -198,7 +212,7 @@ class WoWDataStagingService:
                 if connected_realm_href:
                     connected_realm_id = connected_realm_href.split("/")[-1]
                     endpoint = f"/data/wow/connected-realm/{connected_realm_id}/auctions"
-                    params = {"namespace": f"dynamic-{region}", "locale": "en_US"}
+                    params = {"namespace": data_namespace, "locale": "en_US"}
                     return await self.api_client.make_request(endpoint, params)
         
         return None
@@ -207,7 +221,7 @@ class WoWDataStagingService:
         """Helper to get realm information"""
         try:
             endpoint = f"/data/wow/realm/{realm_slug}"
-            params = {"namespace": f"dynamic-{region}", "locale": "en_US"}
+            params = {"namespace": data_namespace, "locale": "en_US"}
             return await self.api_client.make_request(endpoint, params)
         except Exception:
             return None

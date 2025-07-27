@@ -6,7 +6,8 @@ import uuid
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from sqlalchemy import Column, String, Integer, DateTime, Boolean, ForeignKey, Float, Index
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID
+from .db_types import JSONB
 from sqlalchemy.orm import relationship
 from pydantic import BaseModel, Field
 from enum import Enum

@@ -19,6 +19,7 @@ class WoWDataCache(Base):
     data_type = Column(String(50), nullable=False)  # 'auction', 'guild', 'realm', 'character'
     cache_key = Column(String(200), nullable=False)  # realm-slug, guild-realm-name, etc.
     region = Column(String(10), nullable=False, default='us')  # us, eu, kr, tw, cn
+    game_version = Column(String(20), default='retail')  # 'retail' or 'classic'
     data = Column(JSON, nullable=False)  # The actual API response
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=True)  # Optional expiration
@@ -27,7 +28,7 @@ class WoWDataCache(Base):
     
     # Composite indexes for fast lookups
     __table_args__ = (
-        Index('idx_cache_lookup', 'data_type', 'cache_key', 'region'),
+        Index('idx_cache_lookup', 'data_type', 'cache_key', 'region', 'game_version'),
         Index('idx_cache_timestamp', 'timestamp'),
         Index('idx_cache_expires', 'expires_at'),
         Index('idx_cache_valid', 'is_valid'),

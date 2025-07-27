@@ -1,3 +1,43 @@
+
+## 📁 Project Structure
+
+```
+guilddiscordbot/
+├── config/                 # Configuration files
+│   └── docker/            # Docker configuration
+├── scripts/               # Utility scripts
+│   ├── startup/          # Application startup scripts
+│   └── deployment/       # Deployment configurations
+├── docs/                  # Documentation
+│   ├── api/              # API documentation
+│   ├── architecture/     # System design docs
+│   ├── development/      # Development guides
+│   └── deployment/       # Deployment guides
+├── app/                   # Main application (being migrated)
+├── wow_guild_analytics/   # Modular architecture
+└── tests/                # Test suite
+```
+
+### 🚀 Quick Start
+
+```bash
+# Using Docker
+docker-compose -f config/docker/docker-compose.yml up
+
+# Local development (Windows)
+scripts\startup\scripts\startup\start_server.bat
+
+# Local development (Linux/Mac)
+./scripts/startup/startup.sh
+```
+
+### 📖 Documentation
+
+- [Architecture Overview](docs/architecture/DESIGN_DOCUMENT.md)
+- [MCP Usage Guide](docs/api/MCP_USAGE.md)
+- [Development Standards](docs/development/PEP8_COMPLIANCE.md)
+- [File Organization](docs/development/FILE_ORGANIZATION.md)
+
 <div align="center">
   
 # 📊 WoW Economic Analysis MCP Server
@@ -23,7 +63,6 @@
 [![Pandas](https://img.shields.io/badge/pandas-2.3.0-150458?style=flat-square&logo=pandas&logoColor=white)](https://pandas.pydata.org)
 [![NumPy](https://img.shields.io/badge/numpy-1.26.4-013243?style=flat-square&logo=numpy&logoColor=white)](https://numpy.org)
 [![Plotly](https://img.shields.io/badge/plotly-6.2.0-3F4F75?style=flat-square&logo=plotly&logoColor=white)](https://plotly.com)
-[![Discord.py](https://img.shields.io/badge/discord.py-2.5.2-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discordpy.readthedocs.io)
 [![OpenAI](https://img.shields.io/badge/openai-1.57.3-74aa9c?style=flat-square&logo=openai&logoColor=white)](https://openai.com)
 [![Redis](https://img.shields.io/badge/redis-6.2.0-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
 [![SQLAlchemy](https://img.shields.io/badge/sqlalchemy-2.0.32-FCA121?style=flat-square)](https://www.sqlalchemy.org)
@@ -34,8 +73,10 @@
 
 ---
 
-## 🆕 What's New (July 2024)
+## 🆕 What's New (July 2025)
 
+- **WoW Classic Support**: Full support for WoW Classic API endpoints with `static-classic` namespace
+- **Dual Version Updates**: Scheduled updates can now pull data from both Classic and Retail
 - **Aggregate Market Snapshots**: Now capturing comprehensive market data instead of individual price points
 - **PostgreSQL Storage**: Persistent data storage with 30-day retention
 - **Market Velocity Tracking**: New metrics for turnover rates and estimated sales
@@ -159,7 +200,7 @@ graph LR
 - **Storage**: PostgreSQL with aggregate market snapshots
 - **Data Points**: 2,200+ market snapshots collected daily
 
-### New: Aggregate Market Data (2024)
+### New: Aggregate Market Data (2025)
 
 The system now captures comprehensive market aggregates instead of individual price points:
 
@@ -252,6 +293,7 @@ pip install -r requirements.txt
 # Configure environment
 cp .env.example .env
 # Add your Blizzard API credentials to .env
+# Set WOW_VERSION=classic for WoW Classic or WOW_VERSION=retail for regular WoW
 
 # Start the server
 python analysis_mcp_server.py
@@ -401,7 +443,7 @@ If you use this tool in your research, please cite:
 @software{mcp_wowconomics,
   author = {Mott, Noah},
   title = {WoW Economic Analysis MCP Server},
-  year = {2024},
+  year = {2025},
   publisher = {GitHub},
   url = {https://github.com/noahmott/mcp_wowconomics_server}
 }

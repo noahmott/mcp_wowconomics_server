@@ -6,7 +6,8 @@ import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any
 from sqlalchemy import Column, String, Integer, DateTime, Boolean, ForeignKey, Index
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID
+from .db_types import JSONB
 from sqlalchemy.orm import relationship
 from pydantic import BaseModel, Field
 
@@ -70,7 +71,7 @@ class MemberBase(BaseModel):
     character_class: Optional[str] = Field(None, max_length=20)
     character_spec: Optional[str] = Field(None, max_length=30)
     character_race: Optional[str] = Field(None, max_length=30)
-    level: Optional[int] = Field(1, ge=1, le=80)
+    level: Optional[int] = Field(1, ge=1, le=70)  # Classic max is 60, retail varies
     guild_rank: Optional[str] = Field(None, max_length=50)
     guild_rank_id: Optional[int] = Field(None, ge=0)
     achievement_points: Optional[int] = Field(0, ge=0)
@@ -87,7 +88,7 @@ class MemberUpdate(BaseModel):
     character_class: Optional[str] = Field(None, max_length=20)
     character_spec: Optional[str] = Field(None, max_length=30)
     character_race: Optional[str] = Field(None, max_length=30)
-    level: Optional[int] = Field(None, ge=1, le=80)
+    level: Optional[int] = Field(None, ge=1, le=70)  # Classic max is 60, retail varies
     guild_rank: Optional[str] = Field(None, max_length=50)
     guild_rank_id: Optional[int] = Field(None, ge=0)
     achievement_points: Optional[int] = Field(None, ge=0)

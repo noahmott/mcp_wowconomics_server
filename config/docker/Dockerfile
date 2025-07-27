@@ -8,7 +8,6 @@ ENV PORT=8000
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
-    postgresql-client \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -20,7 +19,18 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . .
+COPY app/ ./app/
+COPY wow_guild_analytics/ ./wow_guild_analytics/
+COPY *.py ./
+COPY .env.example ./
+COPY pyproject.toml ./
+
+# Set Python path to include our modules
+ENV PYTHONPATH=/app:$PYTHONPATH
+
+# Copy entrypoint script and set permissions
+COPY config/docker/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app
@@ -34,5 +44,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Expose port
 EXPOSE $PORT
 
-# Run application
-CMD gunicorn app.main:app --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+# Run application with Redis-based server
+CMD ["python", "-m", "app.main_redis"]

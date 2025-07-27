@@ -57,11 +57,12 @@ class BlizzardAPIClient:
     
     AUTH_URL = "https://oauth.battle.net/token"
     
-    def __init__(self):
+    def __init__(self, game_version: Optional[str] = None):
         self.client_id = os.getenv("BLIZZARD_CLIENT_ID")
         self.client_secret = os.getenv("BLIZZARD_CLIENT_SECRET")
         self.region = os.getenv("BLIZZARD_REGION", "us")
         self.locale = os.getenv("BLIZZARD_LOCALE", "en_US")
+        self.game_version = (game_version or os.getenv("WOW_VERSION", "classic")).lower()  # "retail" or "classic"
         
         # Dynamic base URL based on region
         self.base_url = f"https://{self.region}.api.blizzard.com"
@@ -83,7 +84,13 @@ class BlizzardAPIClient:
         
     async def __aenter__(self):
         """Async context manager entry"""
-        self.session = aiohttp.ClientSession()
+        # Configure timeout from environment
+        timeout = aiohttp.ClientTimeout(
+            total=int(os.getenv("API_TIMEOUT_TOTAL", 300)),
+            connect=int(os.getenv("API_TIMEOUT_CONNECT", 10)),
+            sock_read=int(os.getenv("API_TIMEOUT_READ", 60))
+        )
+        self.session = aiohttp.ClientSession(timeout=timeout)
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -178,13 +185,26 @@ class BlizzardAPIClient:
             "Accept": "application/json"
         }
         
-        # Default parameters - use different namespace based on endpoint type
-        if "/profile/" in endpoint:
-            namespace = f"profile-{self.region}"
-        elif "/data/" in endpoint:
-            namespace = f"dynamic-{self.region}"
+        # Default parameters - use different namespace based on endpoint type and game version
+        if self.game_version == "classic":
+            # WoW Classic uses different namespaces
+            if "/profile/" in endpoint:
+                namespace = f"profile-classic-{self.region}"
+            elif "/data/" in endpoint:
+                namespace = f"static-classic-{self.region}"  # Classic uses static namespace for data
+            else:
+                namespace = f"static-classic-{self.region}"  # fallback for classic
         else:
-            namespace = f"profile-{self.region}"  # fallback
+            # Regular WoW (Retail)
+            if "/profile/" in endpoint:
+                namespace = f"profile-{self.region}"
+            elif "/data/wow/guild/" in endpoint:
+                # Guild endpoints need profile namespace even though they're under /data/
+                namespace = f"profile-{self.region}"
+            elif "/data/" in endpoint:
+                namespace = f"dynamic-{self.region}"
+            else:
+                namespace = f"profile-{self.region}"  # fallback
             
         default_params = {
             "namespace": namespace,
@@ -195,6 +215,8 @@ class BlizzardAPIClient:
             default_params.update(params)
         
         url = f"{self.base_url}{endpoint}"
+        logger.info(f"Making request to: {url}")
+        logger.info(f"With params: {default_params}")
         
         try:
             async with self.session.get(url, headers=headers, params=default_params) as response:
@@ -245,9 +267,9 @@ class BlizzardAPIClient:
     # Guild API methods - using proper endpoints and namespaces with region detection
     async def get_guild_info(self, realm: str, guild_name: str) -> Dict[str, Any]:
         """Get guild information with automatic region detection"""
-        # URL encode the guild name to handle special characters
-        encoded_guild = quote(guild_name.lower(), safe='')
-        endpoint = f"/data/wow/guild/{realm.lower()}/{encoded_guild}"
+        # Replace spaces with hyphens for guild names
+        guild_slug = guild_name.lower().replace(' ', '-')
+        endpoint = f"/data/wow/guild/{realm.lower()}/{guild_slug}"
         
         # Auto-detect region for this realm
         detected_region = self.detect_realm_region(realm)
@@ -255,8 +277,10 @@ class BlizzardAPIClient:
     
     async def get_guild_roster(self, realm: str, guild_name: str) -> Dict[str, Any]:
         """Get guild roster with automatic region detection"""
-        encoded_guild = quote(guild_name.lower(), safe='')
-        endpoint = f"/data/wow/guild/{realm.lower()}/{encoded_guild}/roster"
+        # Replace spaces with hyphens for guild names
+        guild_slug = guild_name.lower().replace(' ', '-')
+        endpoint = f"/data/wow/guild/{realm.lower()}/{guild_slug}/roster"
+        logger.info(f"Guild roster endpoint: {endpoint} (original: {guild_name})")
         
         # Auto-detect region for this realm
         detected_region = self.detect_realm_region(realm)
@@ -264,8 +288,9 @@ class BlizzardAPIClient:
     
     async def get_guild_achievements(self, realm: str, guild_name: str) -> Dict[str, Any]:
         """Get guild achievements with automatic region detection"""
-        encoded_guild = quote(guild_name.lower(), safe='')
-        endpoint = f"/data/wow/guild/{realm.lower()}/{encoded_guild}/achievements"
+        # Replace spaces with hyphens for guild names
+        guild_slug = guild_name.lower().replace(' ', '-')
+        endpoint = f"/data/wow/guild/{realm.lower()}/{guild_slug}/achievements"
         
         # Auto-detect region for this realm
         detected_region = self.detect_realm_region(realm)
@@ -273,8 +298,9 @@ class BlizzardAPIClient:
     
     async def get_guild_activity(self, realm: str, guild_name: str) -> Dict[str, Any]:
         """Get guild activity with automatic region detection"""
-        encoded_guild = quote(guild_name.lower(), safe='')
-        endpoint = f"/data/wow/guild/{realm.lower()}/{encoded_guild}/activity"
+        # Replace spaces with hyphens for guild names
+        guild_slug = guild_name.lower().replace(' ', '-')
+        endpoint = f"/data/wow/guild/{realm.lower()}/{guild_slug}/activity"
         
         # Auto-detect region for this realm
         detected_region = self.detect_realm_region(realm)

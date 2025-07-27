@@ -6,7 +6,8 @@ import uuid
 from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import Column, String, Integer, DateTime, Boolean, Text, Index
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID
+from .db_types import JSONB
 from sqlalchemy.orm import relationship
 from pydantic import BaseModel, Field
 
@@ -21,6 +22,7 @@ class Guild(Base):
     realm = Column(String(50), nullable=False)
     name = Column(String(100), nullable=False)
     faction = Column(String(20))  # Alliance/Horde
+    game_version = Column(String(20), default='retail')  # 'retail' or 'classic'
     level = Column(Integer, default=0)
     member_count = Column(Integer, default=0)
     achievement_points = Column(Integer, default=0)
@@ -43,6 +45,7 @@ class Guild(Base):
         Index('idx_guild_realm_name', 'realm', 'name'),
         Index('idx_guild_updated', 'last_updated'),
         Index('idx_guild_active', 'is_active'),
+        Index('idx_guild_version', 'game_version'),
     )
 
 
