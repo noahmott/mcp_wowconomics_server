@@ -283,7 +283,7 @@ async def get_guild_member_list(
                 # Get cached data
                 cached_json = await redis_client.get(cache_key)
                 if cached_json:
-                    cached_data = json.loads(cached_json)
+                    cached_data = json.loads(cached_json.decode())  # Decode bytes to string
                     
                     # Check cache age
                     stored_date = datetime.fromisoformat(cached_data.get("cached_at", ""))
@@ -368,7 +368,7 @@ async def get_guild_member_list(
                     await redis_client.setex(
                         cache_key,
                         ttl_seconds,
-                        json.dumps(cache_data)
+                        json.dumps(cache_data).encode()  # Encode to bytes
                     )
                     logger.info(f"Cached guild roster for {guild_name} with 15-day TTL")
                 except Exception as e:
@@ -1132,7 +1132,7 @@ async def capture_economy_snapshot(
                         last_update = await redis_client.get(last_snapshot_time_key)
                         
                         if last_update:
-                            last_time = datetime.fromisoformat(last_update)
+                            last_time = datetime.fromisoformat(last_update.decode())  # Decode bytes to string
                             time_diff = datetime.now(timezone.utc) - last_time
                             
                             if time_diff.total_seconds() < 3600:  # Less than 1 hour
@@ -1230,20 +1230,20 @@ async def capture_economy_snapshot(
                     await redis_client.setex(
                         timestamp_key,
                         30 * 24 * 60 * 60,  # 30 days retention
-                        json.dumps(snapshot_data)
+                        json.dumps(snapshot_data).encode()  # Encode to bytes
                     )
                     
                     # Also store as "latest" for quick access
                     await redis_client.setex(
                         f"{snapshot_key}:latest",
                         24 * 60 * 60,  # 24 hours
-                        json.dumps(snapshot_data)
+                        json.dumps(snapshot_data).encode()  # Encode to bytes
                     )
                     
                     # Update last snapshot time
                     await redis_client.set(
                         f"{snapshot_key}:last_update",
-                        datetime.now(timezone.utc).isoformat()
+                        datetime.now(timezone.utc).isoformat().encode()  # Encode to bytes
                     )
                     
                     logger.info(f"Captured economy snapshot for {realm}: {len(item_stats)} unique items")
@@ -1319,7 +1319,7 @@ async def get_economy_trends(
             
             snapshot_data = await redis_client.get(timestamp_key)
             if snapshot_data:
-                snapshot = json.loads(snapshot_data)
+                snapshot = json.loads(snapshot_data.decode())  # Decode bytes to string
                 
                 for item_id in item_ids:
                     item_id_str = str(item_id)
