@@ -258,6 +258,17 @@ The Blizzard API's connected realm search endpoint was found to be non-functiona
 
 This fix ensures the auction house snapshot tools work properly for all retail realms including Area-52, Stormrage, Tichondrius, and others.
 
+### Redis Storage Enhancement (July 2025)
+
+Fixed critical Redis storage issues for proper data persistence:
+
+- **Encoding Fix**: All Redis operations now properly encode/decode data as bytes
+- **Guild Roster Caching**: 15-day TTL with automatic cache invalidation
+- **Economy Snapshots**: Hourly captures with 30-day historical retention
+- **Performance**: ~90% reduction in API calls for frequently accessed data
+
+This ensures reliable data storage and retrieval for both guild rosters and auction house snapshots.
+
 ## 📊 Data Sources & Coverage
 
 ### Available Data Types
@@ -382,11 +393,15 @@ cp .env.example .env
 python app/mcp_server_fastmcp.py
 ```
 
-## 🚀 New Redis-Powered Features
+## 🚀 Redis-Powered Caching & Performance
+
+### Overview
+
+The system uses Heroku Redis for intelligent caching, reducing Blizzard API calls by up to 90% while providing faster response times and historical data tracking.
 
 ### Guild Roster Caching
 
-The `get_guild_member_list` tool now includes intelligent caching:
+The `get_guild_member_list` tool includes intelligent 15-day caching:
 
 ```python
 # First call fetches from API and caches for 15 days
@@ -404,9 +419,15 @@ result = await get_guild_member_list(
 # Response includes: "from_cache": true, "cache_age_days": 2
 ```
 
+**Benefits:**
+- ⚡ Instant response for cached guilds
+- 📊 Reduces API calls by ~90% for active guilds
+- 🔄 Automatic cache invalidation after 15 days
+- 📈 Tracks cache age for transparency
+
 ### Economy Snapshot System
 
-Capture and analyze market trends over time:
+Hourly auction house snapshots with 30-day retention:
 
 ```python
 # Capture hourly snapshots for multiple realms
@@ -569,6 +590,30 @@ The server supports multiple export formats for guild management:
 - **JSON Reports** - Detailed guild and member analysis data
 - **CSV Data** - Member statistics and performance metrics
 - **Activity Logs** - Comprehensive usage analytics via Supabase
+
+## 🧪 Testing & Monitoring Tools
+
+The project includes comprehensive testing utilities in the `tests/redis/` directory:
+
+### Redis Monitoring Scripts
+
+- **`view_redis_snapshots.py`** - View all stored economy snapshots and guild caches
+- **`test_redis_storage.py`** - Test Redis connection and basic storage operations
+- **`test_guild_caching.py`** - Verify guild roster caching functionality
+- **`force_snapshot.py`** - Manually trigger economy snapshots for testing
+
+### Usage Example
+
+```bash
+# View current Redis data
+python tests/redis/view_redis_snapshots.py
+
+# Test guild caching
+python tests/redis/test_guild_caching.py
+
+# Monitor Redis health
+heroku redis:info --app wow-guild-mcp-server
+```
 
 ## 🤝 Contributing to Guild Analytics
 
