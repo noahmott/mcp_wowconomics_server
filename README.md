@@ -373,6 +373,6 @@ For questions or support, please email: noah.mott1@gmail.com
 
 *Last updated: July 2025*
 
-[![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-8957E5?style=for-the-badge&logo=anthropic&logoColor=white)](https://claude.ai)
+[![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-orange?style=for-the-badge&logo=anthropic&logoColor=white)](https://claude.ai)
 
 *Coding assisted by [Claude AI](https://claude.ai) from [Anthropic](https://anthropic.com)*
