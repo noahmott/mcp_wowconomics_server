@@ -375,4 +375,4 @@ For questions or support, please email: noah.mott1@gmail.com
 
 [![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-orange?style=for-the-badge&logo=anthropic&logoColor=white)](https://claude.ai)
 
-*Coding assisted by [Claude AI](https://claude.ai) from [Anthropic](https://anthropic.com)*
+*Coding assisted by [Claude Code](https://claude.ai) developed by [Anthropic](https://anthropic.com)*
