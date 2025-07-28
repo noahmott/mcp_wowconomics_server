@@ -1060,6 +1060,12 @@ async def get_character_details(
             if "profile" in sections or True:  # Always include profile
                 try:
                     profile = await client.get_character_profile(realm, character_name)
+                    
+                    # Handle case where profile might not be a dict
+                    if not isinstance(profile, dict):
+                        logger.error(f"Profile data is not a dict: {type(profile)} - {profile}")
+                        return {"error": f"Invalid profile data received from API"}
+                    
                     # Safe navigation for nested fields
                     race_data = profile.get("race", {})
                     race_name = race_data.get("name", {}).get("en_US", "Unknown") if isinstance(race_data, dict) else "Unknown"
@@ -1101,6 +1107,12 @@ async def get_character_details(
             if "equipment" in sections:
                 try:
                     equipment = await client.get_character_equipment(realm, character_name)
+                    
+                    # Handle case where equipment might not be a dict
+                    if not isinstance(equipment, dict):
+                        logger.warning(f"Equipment data is not a dict: {type(equipment)}")
+                        equipment = {}
+                    
                     equipped_items = []
                     
                     for item in equipment.get("equipped_items", []):
@@ -1163,6 +1175,14 @@ async def get_character_details(
             if "specializations" in sections:
                 try:
                     specs = await client.get_character_specializations(realm, character_name)
+                    logger.debug(f"Raw specializations data type: {type(specs)}")
+                    logger.debug(f"Raw specializations data: {specs}")
+                    
+                    # Handle case where specs might not be a dict
+                    if not isinstance(specs, dict):
+                        logger.warning(f"Specializations data is not a dict: {type(specs)}")
+                        specs = {}
+                    
                     spec_data = []
                     
                     for spec in specs.get("specializations", []):
@@ -1341,7 +1361,9 @@ async def get_character_details(
         }
         
     except Exception as e:
-        logger.error(f"Error getting character details: {str(e)}")
+        import traceback
+        error_trace = traceback.format_exc()
+        logger.error(f"Error getting character details: {str(e)}\n{error_trace}")
         return {"error": f"Failed to get character details: {str(e)}"}
 
 @mcp.tool()
