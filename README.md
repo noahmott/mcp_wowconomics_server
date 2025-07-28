@@ -1,4 +1,4 @@
-# ⚔️ WoW Guild Analytics MCP Server
+# <img src="https://raw.githubusercontent.com/orourkek/wow-icons/master/classes_18x18/warrior.png" width="24" height="24" alt="Warrior"> WoW Guild Analytics MCP Server
 
 ![World of Warcraft](https://img.shields.io/badge/World%20of%20Warcraft-Retail%20%26%20Classic-f4c430?style=for-the-badge&logo=battle.net&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-Caching-DC382D?style=for-the-badge&logo=redis&logoColor=white)
@@ -9,19 +9,19 @@ A powerful Model Context Protocol (MCP) server that provides AI assistants with 
 
 ## Features
 
-### 🛡️ Guild Management Tools ![Paladin](https://img.shields.io/badge/-Paladin-F58CBA?style=flat-square)
+### <img src="https://raw.githubusercontent.com/orourkek/wow-icons/master/classes_18x18/paladin.png" width="18" height="18" alt="Paladin"> Guild Management Tools
 - **Guild Performance Analysis** - Comprehensive guild metrics with AI-powered insights
 - **Member List Management** - Detailed roster with sorting and filtering options
 - **Raid Progress Tracking** - Visual raid progression charts and statistics
 - **Member Performance Comparison** - Compare metrics across guild members
 
-### 💰 Economy & Auction House ![Rogue](https://img.shields.io/badge/-Rogue-FFF569?style=flat-square)
+### <img src="https://raw.githubusercontent.com/orourkek/wow-icons/master/classes_18x18/rogue.png" width="18" height="18" alt="Rogue"> Economy & Auction House
 - **Real-time Auction Snapshots** - Current market data with price aggregation
 - **Economy Trend Analysis** - Historical price tracking up to 30 days
 - **Market Opportunity Scanner** - Find profitable items with customizable margins
 - **Item Market History** - Detailed analysis of specific item trends
 
-### 🧙 Character Analytics ![Mage](https://img.shields.io/badge/-Mage-69CCF0?style=flat-square)
+### <img src="https://raw.githubusercontent.com/orourkek/wow-icons/master/classes_18x18/mage.png" width="18" height="18" alt="Mage"> Character Analytics
 - **Member Performance Analysis** - Individual character progression tracking
 - **Character Details Lookup** - Comprehensive character information including:
   - Equipment and item levels
@@ -31,17 +31,17 @@ A powerful Model Context Protocol (MCP) server that provides AI assistants with 
   - Mythic+ scores
   - Collections and titles
 
-### 🌍 Realm & Server Tools ![Shaman](https://img.shields.io/badge/-Shaman-0070DE?style=flat-square)
+### <img src="https://raw.githubusercontent.com/orourkek/wow-icons/master/classes_18x18/shaman.png" width="18" height="18" alt="Shaman"> Realm & Server Tools
 - **Realm Status Monitoring** - Server status and population data
 - **Connected Realm Lookup** - Find connected realm IDs for API calls
 - **Classic Realm Support** - Full support for Classic progression servers
 
-### 📊 Data Visualization ![Priest](https://img.shields.io/badge/-Priest-FFFFFF?style=flat-square)
+### <img src="https://raw.githubusercontent.com/orourkek/wow-icons/master/classes_18x18/priest.png" width="18" height="18" alt="Priest"> Data Visualization
 - **Raid Progress Charts** - Visual representation of guild raid completion
 - **Performance Comparison Graphs** - Side-by-side member metric comparison
 - **Market Trend Visualizations** - Price history charts and analysis
 
-### 🔧 Diagnostic & Testing ![Hunter](https://img.shields.io/badge/-Hunter-ABD473?style=flat-square)
+### <img src="https://raw.githubusercontent.com/orourkek/wow-icons/master/classes_18x18/hunter.png" width="18" height="18" alt="Hunter"> Diagnostic & Testing
 - **API Connection Testing** - Verify Blizzard API connectivity
 - **Classic Auction House Testing** - Test Classic realm auction data
 - **Supabase Connection Verification** - Database connectivity checks
