@@ -1166,31 +1166,46 @@ async def get_character_details(
                     spec_data = []
                     
                     for spec in specs.get("specializations", []):
+                        # Safe navigation for specialization data
+                        spec_detail = spec.get("specialization", {})
+                        spec_name = spec_detail.get("name", {}).get("en_US", "Unknown") if isinstance(spec_detail, dict) else "Unknown"
+                        
+                        spec_role = spec_detail.get("role", {})
+                        role_name = spec_role.get("name", "Unknown") if isinstance(spec_role, dict) else "Unknown"
+                        
                         spec_info = {
-                            "name": spec.get("specialization", {}).get("name", {}).get("en_US", "Unknown"),
-                            "role": spec.get("specialization", {}).get("role", {}).get("name", "Unknown"),
+                            "name": spec_name,
+                            "role": role_name,
                             "talents": [],
                             "pvp_talents": []
                         }
                         
                         # Get talents
                         for talent in spec.get("talents", []):
+                            talent_data = talent.get("talent", {})
+                            talent_name = talent_data.get("name", {}).get("en_US", "Unknown") if isinstance(talent_data, dict) else "Unknown"
                             spec_info["talents"].append({
-                                "name": talent.get("talent", {}).get("name", {}).get("en_US", "Unknown"),
+                                "name": talent_name,
                                 "tier": talent.get("tier_index"),
                                 "column": talent.get("column_index")
                             })
                         
                         # Get PvP talents
                         for pvp_talent in spec.get("pvp_talents", []):
+                            pvp_talent_data = pvp_talent.get("talent", {})
+                            pvp_talent_name = pvp_talent_data.get("name", {}).get("en_US", "Unknown") if isinstance(pvp_talent_data, dict) else "Unknown"
                             spec_info["pvp_talents"].append({
-                                "name": pvp_talent.get("talent", {}).get("name", {}).get("en_US", "Unknown")
+                                "name": pvp_talent_name
                             })
                         
                         spec_data.append(spec_info)
                     
+                    # Safe navigation for active specialization
+                    active_spec = specs.get("active_specialization", {})
+                    active_spec_name = active_spec.get("name", {}).get("en_US", "Unknown") if isinstance(active_spec, dict) else "Unknown"
+                    
                     character_data["specializations"] = {
-                        "active_specialization": specs.get("active_specialization", {}).get("name", {}).get("en_US", "Unknown"),
+                        "active_specialization": active_spec_name,
                         "specializations": spec_data
                     }
                 except BlizzardAPIError as e:
@@ -1281,10 +1296,24 @@ async def get_character_details(
             if "titles" in sections:
                 try:
                     titles = await client.get_character_titles(realm, character_name)
+                    # Safe navigation for active title
+                    active_title_data = titles.get("active_title", {})
+                    active_title_name = None
+                    if isinstance(active_title_data, dict):
+                        title_name_data = active_title_data.get("name", {})
+                        active_title_name = title_name_data.get("en_US") if isinstance(title_name_data, dict) else None
+                    
+                    # Safe navigation for title list
+                    title_list = []
+                    for t in titles.get("titles", [])[:10]:
+                        t_name_data = t.get("name", {})
+                        t_name = t_name_data.get("en_US", "Unknown") if isinstance(t_name_data, dict) else "Unknown"
+                        title_list.append(t_name)
+                    
                     character_data["titles"] = {
-                        "active_title": titles.get("active_title", {}).get("name", {}).get("en_US"),
+                        "active_title": active_title_name,
                         "total_titles": len(titles.get("titles", [])),
-                        "titles": [t.get("name", {}).get("en_US", "Unknown") for t in titles.get("titles", [])][:10]
+                        "titles": title_list
                     }
                 except BlizzardAPIError as e:
                     errors.append(f"Titles: {str(e)}")
