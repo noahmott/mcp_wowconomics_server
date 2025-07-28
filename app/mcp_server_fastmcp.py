@@ -918,9 +918,12 @@ async def get_auction_house_snapshot(
                     logger.error(f"Failed to get realm info: {str(e)}")
                     
                     # Try hardcoded ID as last resort
-                    if realm.lower() in KNOWN_CLASSIC_REALMS:
+                    if game_version == "classic" and realm.lower() in KNOWN_CLASSIC_REALMS:
                         connected_realm_id = KNOWN_CLASSIC_REALMS[realm.lower()]
-                        logger.info(f"Using fallback realm ID for {realm}: {connected_realm_id}")
+                        logger.info(f"Using fallback Classic realm ID for {realm}: {connected_realm_id}")
+                    elif game_version == "retail" and realm.lower() in KNOWN_RETAIL_REALMS:
+                        connected_realm_id = KNOWN_RETAIL_REALMS[realm.lower()]
+                        logger.info(f"Using fallback Retail realm ID for {realm}: {connected_realm_id}")
             
         if not connected_realm_id:
             return {"error": f"Could not find connected realm ID for realm {realm}"}
@@ -1399,10 +1402,17 @@ async def find_market_opportunities(
             if game_version == "classic" and realm.lower() in KNOWN_CLASSIC_REALMS:
                 connected_realm_id = KNOWN_CLASSIC_REALMS[realm.lower()]
                 logger.info(f"Using known Classic realm ID for {realm}: {connected_realm_id}")
+            # Check if it's a known Retail realm
+            elif game_version == "retail" and realm.lower() in KNOWN_RETAIL_REALMS:
+                connected_realm_id = KNOWN_RETAIL_REALMS[realm.lower()]
+                logger.info(f"Using known Retail realm ID for {realm}: {connected_realm_id}")
             else:
                 # Try to get from API
-                realm_info = await client._get_realm_info(realm)
-                connected_realm_id = realm_info.get('connected_realm', {}).get('id')
+                try:
+                    realm_info = await client._get_realm_info(realm)
+                    connected_realm_id = realm_info.get('connected_realm', {}).get('id')
+                except Exception as e:
+                    logger.error(f"Failed to get realm info for {realm}: {e}")
             
             if not connected_realm_id:
                 return {"error": "Could not find connected realm ID"}
