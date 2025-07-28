@@ -982,6 +982,272 @@ async def get_auction_house_snapshot(
 
 @mcp.tool()
 @with_supabase_logging
+async def get_character_details(
+    realm: str,
+    character_name: str,
+    sections: List[str] = ["profile", "equipment", "specializations"],
+    game_version: str = "retail"
+) -> Dict[str, Any]:
+    """
+    Get comprehensive character details including gear, specializations, and other information
+    
+    Args:
+        realm: Server realm
+        character_name: Character name
+        sections: Data sections to retrieve. Available options:
+            - profile: Basic character information (default)
+            - equipment: Current gear and item levels (default)
+            - specializations: Talent specializations (default)
+            - achievements: Achievement points and recent achievements
+            - statistics: Character statistics
+            - media: Character avatar and media
+            - pvp: PvP statistics and ratings
+            - appearance: Character appearance customization
+            - collections: Mounts and pets
+            - titles: Available titles
+            - mythic_plus: Mythic+ dungeon data
+            - all: Retrieve all available data
+        game_version: WoW version ('retail' or 'classic')
+    
+    Returns:
+        Comprehensive character information based on requested sections
+    """
+    try:
+        logger.info(f"Getting character details for {character_name} on {realm} ({game_version})")
+        
+        # If 'all' is specified, get all sections
+        all_sections = ["profile", "equipment", "specializations", "achievements", 
+                       "statistics", "media", "pvp", "appearance", "collections", 
+                       "titles", "mythic_plus"]
+        
+        if "all" in sections:
+            sections = all_sections
+        
+        character_data = {}
+        errors = []
+        
+        async with BlizzardAPIClient(game_version=game_version) as client:
+            # Always get basic profile
+            if "profile" in sections or True:  # Always include profile
+                try:
+                    profile = await client.get_character_profile(realm, character_name)
+                    character_data["profile"] = {
+                        "name": profile.get("name"),
+                        "level": profile.get("level"),
+                        "race": profile.get("race", {}).get("name", {}).get("en_US", "Unknown"),
+                        "class": profile.get("character_class", {}).get("name", {}).get("en_US", "Unknown"),
+                        "active_spec": profile.get("active_spec", {}).get("name", {}).get("en_US", "Unknown"),
+                        "realm": profile.get("realm", {}).get("name", "Unknown"),
+                        "faction": profile.get("faction", {}).get("name", "Unknown"),
+                        "guild": profile.get("guild", {}).get("name") if profile.get("guild") else None,
+                        "achievement_points": profile.get("achievement_points", 0),
+                        "equipped_item_level": profile.get("equipped_item_level", 0),
+                        "average_item_level": profile.get("average_item_level", 0),
+                        "last_login": profile.get("last_login_timestamp")
+                    }
+                except BlizzardAPIError as e:
+                    errors.append(f"Profile: {str(e)}")
+                    return {"error": f"Character not found: {str(e)}"}
+            
+            # Get equipment details
+            if "equipment" in sections:
+                try:
+                    equipment = await client.get_character_equipment(realm, character_name)
+                    equipped_items = []
+                    
+                    for item in equipment.get("equipped_items", []):
+                        item_info = {
+                            "slot": item.get("slot", {}).get("name", {}).get("en_US", "Unknown"),
+                            "name": item.get("name", {}).get("en_US", "Unknown"),
+                            "item_level": item.get("level", {}).get("value", 0),
+                            "quality": item.get("quality", {}).get("name", {}).get("en_US", "Unknown"),
+                            "item_id": item.get("item", {}).get("id"),
+                            "enchantments": [],
+                            "sockets": []
+                        }
+                        
+                        # Get enchantments
+                        for enchant in item.get("enchantments", []):
+                            item_info["enchantments"].append({
+                                "id": enchant.get("enchantment_id"),
+                                "name": enchant.get("display_string", {}).get("en_US", "Unknown")
+                            })
+                        
+                        # Get sockets
+                        for socket in item.get("sockets", []):
+                            if socket.get("item"):
+                                item_info["sockets"].append({
+                                    "item_id": socket["item"].get("id"),
+                                    "name": socket["item"].get("name", {}).get("en_US", "Unknown")
+                                })
+                        
+                        equipped_items.append(item_info)
+                    
+                    character_data["equipment"] = {
+                        "equipped_items": equipped_items,
+                        "item_count": len(equipped_items)
+                    }
+                except BlizzardAPIError as e:
+                    errors.append(f"Equipment: {str(e)}")
+            
+            # Get specializations
+            if "specializations" in sections:
+                try:
+                    specs = await client.get_character_specializations(realm, character_name)
+                    spec_data = []
+                    
+                    for spec in specs.get("specializations", []):
+                        spec_info = {
+                            "name": spec.get("specialization", {}).get("name", {}).get("en_US", "Unknown"),
+                            "role": spec.get("specialization", {}).get("role", {}).get("name", "Unknown"),
+                            "talents": [],
+                            "pvp_talents": []
+                        }
+                        
+                        # Get talents
+                        for talent in spec.get("talents", []):
+                            spec_info["talents"].append({
+                                "name": talent.get("talent", {}).get("name", {}).get("en_US", "Unknown"),
+                                "tier": talent.get("tier_index"),
+                                "column": talent.get("column_index")
+                            })
+                        
+                        # Get PvP talents
+                        for pvp_talent in spec.get("pvp_talents", []):
+                            spec_info["pvp_talents"].append({
+                                "name": pvp_talent.get("talent", {}).get("name", {}).get("en_US", "Unknown")
+                            })
+                        
+                        spec_data.append(spec_info)
+                    
+                    character_data["specializations"] = {
+                        "active_specialization": specs.get("active_specialization", {}).get("name", {}).get("en_US", "Unknown"),
+                        "specializations": spec_data
+                    }
+                except BlizzardAPIError as e:
+                    errors.append(f"Specializations: {str(e)}")
+            
+            # Get achievements
+            if "achievements" in sections:
+                try:
+                    achievements = await client.get_character_achievements(realm, character_name)
+                    character_data["achievements"] = {
+                        "total_points": achievements.get("total_points", 0),
+                        "total_achievements": achievements.get("total_quantity", 0),
+                        "recent_achievements": achievements.get("recent_events", [])[:10]  # Last 10
+                    }
+                except BlizzardAPIError as e:
+                    errors.append(f"Achievements: {str(e)}")
+            
+            # Get statistics
+            if "statistics" in sections:
+                try:
+                    stats = await client.get_character_statistics(realm, character_name)
+                    character_data["statistics"] = stats
+                except BlizzardAPIError as e:
+                    errors.append(f"Statistics: {str(e)}")
+            
+            # Get media
+            if "media" in sections:
+                try:
+                    media = await client.get_character_media(realm, character_name)
+                    character_data["media"] = {
+                        "avatar": next((asset["value"] for asset in media.get("assets", []) 
+                                      if asset.get("key") == "avatar"), None),
+                        "main": next((asset["value"] for asset in media.get("assets", []) 
+                                    if asset.get("key") == "main"), None),
+                        "render_url": media.get("render_url")
+                    }
+                except BlizzardAPIError as e:
+                    errors.append(f"Media: {str(e)}")
+            
+            # Get PvP data
+            if "pvp" in sections:
+                try:
+                    pvp = await client.get_character_pvp_summary(realm, character_name)
+                    character_data["pvp"] = {
+                        "honor_level": pvp.get("honor_level", 0),
+                        "honorable_kills": pvp.get("honorable_kills", 0),
+                        "ratings": {}
+                    }
+                    
+                    # Get bracket ratings
+                    for bracket in ["2v2", "3v3", "rbg"]:
+                        bracket_data = pvp.get(f"bracket_{bracket}")
+                        if bracket_data:
+                            character_data["pvp"]["ratings"][bracket] = {
+                                "rating": bracket_data.get("rating", 0),
+                                "season_played": bracket_data.get("season_match_statistics", {}).get("played", 0),
+                                "season_won": bracket_data.get("season_match_statistics", {}).get("won", 0)
+                            }
+                except BlizzardAPIError as e:
+                    errors.append(f"PvP: {str(e)}")
+            
+            # Get appearance
+            if "appearance" in sections:
+                try:
+                    appearance = await client.get_character_appearance(realm, character_name)
+                    character_data["appearance"] = appearance
+                except BlizzardAPIError as e:
+                    errors.append(f"Appearance: {str(e)}")
+            
+            # Get collections
+            if "collections" in sections:
+                try:
+                    collections = await client.get_character_collections(realm, character_name)
+                    character_data["collections"] = {
+                        "mounts": {
+                            "total": len(collections.get("mounts", {}).get("mounts", [])),
+                            "collected": [m for m in collections.get("mounts", {}).get("mounts", []) if m.get("is_collected")][:10]
+                        },
+                        "pets": {
+                            "total": len(collections.get("pets", {}).get("pets", [])),
+                            "collected": [p for p in collections.get("pets", {}).get("pets", []) if p.get("is_collected")][:10]
+                        }
+                    }
+                except BlizzardAPIError as e:
+                    errors.append(f"Collections: {str(e)}")
+            
+            # Get titles
+            if "titles" in sections:
+                try:
+                    titles = await client.get_character_titles(realm, character_name)
+                    character_data["titles"] = {
+                        "active_title": titles.get("active_title", {}).get("name", {}).get("en_US"),
+                        "total_titles": len(titles.get("titles", [])),
+                        "titles": [t.get("name", {}).get("en_US", "Unknown") for t in titles.get("titles", [])][:10]
+                    }
+                except BlizzardAPIError as e:
+                    errors.append(f"Titles: {str(e)}")
+            
+            # Get mythic plus data
+            if "mythic_plus" in sections:
+                try:
+                    mythic = await client.get_character_mythic_keystone(realm, character_name)
+                    character_data["mythic_plus"] = {
+                        "current_rating": mythic.get("current_mythic_rating", {}).get("rating", 0),
+                        "best_runs": mythic.get("best_runs", [])[:5],  # Top 5 runs
+                        "season_details": mythic.get("season_details")
+                    }
+                except BlizzardAPIError as e:
+                    errors.append(f"Mythic+: {str(e)}")
+        
+        return {
+            "success": True,
+            "character_name": character_name,
+            "realm": realm,
+            "game_version": game_version,
+            "data": character_data,
+            "errors": errors if errors else None,
+            "sections_retrieved": list(character_data.keys())
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting character details: {str(e)}")
+        return {"error": f"Failed to get character details: {str(e)}"}
+
+@mcp.tool()
+@with_supabase_logging
 async def analyze_item_market_history(
     realm: str,
     item_id: int,

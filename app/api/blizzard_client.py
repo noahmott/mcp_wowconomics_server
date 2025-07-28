@@ -381,7 +381,50 @@ class BlizzardAPIClient:
     
     async def get_character_mythic_keystone(self, realm: str, character_name: str) -> Dict[str, Any]:
         """Get character mythic keystone profile"""
-        endpoint = f"/profile/wow/character/{realm.lower()}/{character_name.lower()}/mythic-keystone-profile"
+        encoded_name = quote(character_name.lower(), safe='')
+        endpoint = f"/profile/wow/character/{realm.lower()}/{encoded_name}/mythic-keystone-profile"
+        return await self.make_request(endpoint)
+    
+    async def get_character_specializations(self, realm: str, character_name: str) -> Dict[str, Any]:
+        """Get character specializations"""
+        encoded_name = quote(character_name.lower(), safe='')
+        endpoint = f"/profile/wow/character/{realm.lower()}/{encoded_name}/specializations"
+        return await self.make_request(endpoint)
+    
+    async def get_character_statistics(self, realm: str, character_name: str) -> Dict[str, Any]:
+        """Get character statistics"""
+        encoded_name = quote(character_name.lower(), safe='')
+        endpoint = f"/profile/wow/character/{realm.lower()}/{encoded_name}/statistics"
+        return await self.make_request(endpoint)
+    
+    async def get_character_media(self, realm: str, character_name: str) -> Dict[str, Any]:
+        """Get character media (avatar, etc)"""
+        encoded_name = quote(character_name.lower(), safe='')
+        endpoint = f"/profile/wow/character/{realm.lower()}/{encoded_name}/character-media"
+        return await self.make_request(endpoint)
+    
+    async def get_character_pvp_summary(self, realm: str, character_name: str) -> Dict[str, Any]:
+        """Get character PvP summary"""
+        encoded_name = quote(character_name.lower(), safe='')
+        endpoint = f"/profile/wow/character/{realm.lower()}/{encoded_name}/pvp-summary"
+        return await self.make_request(endpoint)
+    
+    async def get_character_appearance(self, realm: str, character_name: str) -> Dict[str, Any]:
+        """Get character appearance"""
+        encoded_name = quote(character_name.lower(), safe='')
+        endpoint = f"/profile/wow/character/{realm.lower()}/{encoded_name}/appearance"
+        return await self.make_request(endpoint)
+    
+    async def get_character_collections(self, realm: str, character_name: str) -> Dict[str, Any]:
+        """Get character collections (mounts, pets)"""
+        encoded_name = quote(character_name.lower(), safe='')
+        endpoint = f"/profile/wow/character/{realm.lower()}/{encoded_name}/collections"
+        return await self.make_request(endpoint)
+    
+    async def get_character_titles(self, realm: str, character_name: str) -> Dict[str, Any]:
+        """Get character titles"""
+        encoded_name = quote(character_name.lower(), safe='')
+        endpoint = f"/profile/wow/character/{realm.lower()}/{encoded_name}/titles"
         return await self.make_request(endpoint)
     
     # Realm and Auction House methods

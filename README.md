@@ -197,9 +197,9 @@ graph LR
 ## 🛠️ Complete Tool Reference
 
 <details>
-<summary><b>Click to view all 16 analytics tools</b></summary>
+<summary><b>Click to view all 17 analytics tools</b></summary>
 
-### 🏰 Guild Analytics Tools (7)
+### 🏰 Guild & Character Analytics Tools (8)
 
 <div align="center">
 <img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_tournaments_banner_human.jpg" width="30" alt="Alliance">
@@ -211,6 +211,7 @@ graph LR
 | `analyze_guild_performance` | Comprehensive guild analysis with AI insights | Detailed performance report with recommendations |
 | `get_guild_member_list` | Guild roster with sorting and filtering (Redis cached) | JSON member data with cache status |
 | `analyze_member_performance` | Individual character analysis | Equipment, achievements, and progression data |
+| `get_character_details` | Comprehensive character information | Detailed gear, specs, achievements, PvP, and more |
 | `generate_raid_progress_chart` | Visual raid progression tracking | Matplotlib/seaborn charts (PNG) |
 | `compare_member_performance` | Side-by-side member comparisons | Comparative analysis with visualizations |
 | `test_supabase_connection` | Activity logging and monitoring | Connection status and usage analytics |
@@ -482,6 +483,36 @@ member_analysis = await analyze_member_performance(
 print(f"Item Level: {member_analysis['average_item_level']}")
 print(f"Mythic+ Score: {member_analysis['mythic_plus_score']}")
 print(f"Recent Achievements: {member_analysis['recent_achievements']}")
+```
+
+### Comprehensive Character Details
+
+```python
+# Get detailed character information including gear, specs, and more
+character_details = await get_character_details(
+    realm="lightbringer",
+    character_name="Bathtime",
+    sections=["profile", "equipment", "specializations", "pvp", "mythic_plus"],
+    game_version="retail"
+)
+
+# Access detailed equipment information
+for item in character_details['data']['equipment']['equipped_items']:
+    print(f"{item['slot']}: {item['name']} (ilvl {item['item_level']})")
+
+# Available sections:
+# - profile: Basic info (level, class, guild, item levels)
+# - equipment: All gear with enchants and sockets
+# - specializations: Talent builds and PvP talents
+# - achievements: Points and recent achievements
+# - statistics: Character statistics
+# - media: Avatar and character renders
+# - pvp: Honor level, kills, and arena ratings
+# - appearance: Transmog and customization
+# - collections: Mounts and pets
+# - titles: Available and active titles
+# - mythic_plus: M+ rating and best runs
+# - all: Retrieve everything
 ```
 
 ### Raid Progress Visualization
