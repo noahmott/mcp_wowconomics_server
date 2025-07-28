@@ -75,6 +75,33 @@ KNOWN_CLASSIC_REALMS = {
 # Use the realm IDs from blizzard_client
 KNOWN_RETAIL_REALMS = RETAIL_REALMS
 
+async def get_connected_realm_id(realm: str, game_version: str = "retail", client: BlizzardAPIClient = None) -> Optional[int]:
+    """Get connected realm ID with fallback to hardcoded values"""
+    realm_lower = realm.lower()
+    
+    # First check hardcoded IDs
+    if game_version == "classic" and realm_lower in KNOWN_CLASSIC_REALMS:
+        logger.info(f"Using known Classic realm ID for {realm}: {KNOWN_CLASSIC_REALMS[realm_lower]}")
+        return KNOWN_CLASSIC_REALMS[realm_lower]
+    elif game_version == "retail" and realm_lower in KNOWN_RETAIL_REALMS:
+        logger.info(f"Using known Retail realm ID for {realm}: {KNOWN_RETAIL_REALMS[realm_lower]}")
+        return KNOWN_RETAIL_REALMS[realm_lower]
+    
+    # Try to get from API
+    if client:
+        try:
+            realm_info = await client._get_realm_info(realm)
+            connected_realm_id = realm_info.get('connected_realm', {}).get('id')
+            if connected_realm_id:
+                logger.info(f"Got realm ID from API for {realm}: {connected_realm_id}")
+                return connected_realm_id
+        except Exception as e:
+            logger.warning(f"Failed to get realm info from API for {realm}: {e}")
+    
+    # No ID found
+    logger.error(f"Could not find connected realm ID for {realm} ({game_version})")
+    return None
+
 # Decorator for automatic Supabase logging
 def with_supabase_logging(func):
     """Decorator to automatically log tool calls to Supabase"""
@@ -902,33 +929,12 @@ async def get_auction_house_snapshot(
     try:
         logger.info(f"Getting auction house data for realm {realm} ({game_version})")
         
-        connected_realm_id = None
-        
-        # First check if it's a known Classic realm (classic-era currently unavailable)
-        if game_version == "classic" and realm.lower() in KNOWN_CLASSIC_REALMS:
-            connected_realm_id = KNOWN_CLASSIC_REALMS[realm.lower()]
-            logger.info(f"Using known realm ID for {realm}: {connected_realm_id}")
-        else:
-            # Try to get from API
-            async with BlizzardAPIClient(game_version=game_version) as client:
-                try:
-                    realm_info = await client._get_realm_info(realm)
-                    connected_realm_id = realm_info.get('connected_realm', {}).get('id')
-                except Exception as e:
-                    logger.error(f"Failed to get realm info: {str(e)}")
-                    
-                    # Try hardcoded ID as last resort
-                    if game_version == "classic" and realm.lower() in KNOWN_CLASSIC_REALMS:
-                        connected_realm_id = KNOWN_CLASSIC_REALMS[realm.lower()]
-                        logger.info(f"Using fallback Classic realm ID for {realm}: {connected_realm_id}")
-                    elif game_version == "retail" and realm.lower() in KNOWN_RETAIL_REALMS:
-                        connected_realm_id = KNOWN_RETAIL_REALMS[realm.lower()]
-                        logger.info(f"Using fallback Retail realm ID for {realm}: {connected_realm_id}")
-            
-        if not connected_realm_id:
-            return {"error": f"Could not find connected realm ID for realm {realm}"}
-        
         async with BlizzardAPIClient(game_version=game_version) as client:
+            # Get connected realm ID using helper function
+            connected_realm_id = await get_connected_realm_id(realm, game_version, client)
+            
+            if not connected_realm_id:
+                return {"error": f"Could not find connected realm ID for realm {realm}"}
             
             # Get current auction data
             ah_data = await client.get_auction_house_data(connected_realm_id)
@@ -1147,21 +1153,12 @@ async def capture_economy_snapshot(
                                 snapshots_skipped += 1
                                 continue
                     
-                    # Get realm info first
-                    realm_info = await client._get_realm_info(realm)
-                    connected_realm_id = realm_info.get('connected_realm', {}).get('id')
+                    # Get connected realm ID using helper function
+                    connected_realm_id = await get_connected_realm_id(realm, game_version, client)
                     
                     if not connected_realm_id:
-                        # Try hardcoded IDs for Classic
-                        if game_version == "classic" and realm.lower() in KNOWN_CLASSIC_REALMS:
-                            connected_realm_id = KNOWN_CLASSIC_REALMS[realm.lower()]
-                        # Try hardcoded IDs for Retail
-                        elif game_version == "retail" and realm.lower() in KNOWN_RETAIL_REALMS:
-                            connected_realm_id = KNOWN_RETAIL_REALMS[realm.lower()]
-                            logger.info(f"Using known realm ID {connected_realm_id} for {realm}")
-                        else:
-                            results[realm] = {"status": "error", "message": "Could not find connected realm ID"}
-                            continue
+                        results[realm] = {"status": "error", "message": "Could not find connected realm ID"}
+                        continue
                     
                     # Get auction house data
                     ah_data = await client.get_auction_house_data(connected_realm_id)
@@ -1395,24 +1392,8 @@ async def find_market_opportunities(
         logger.info(f"Finding market opportunities on {realm} ({game_version})")
         
         async with BlizzardAPIClient(game_version=game_version) as client:
-            # Get connected realm ID
-            connected_realm_id = None
-            
-            # Check if it's a known Classic realm first
-            if game_version == "classic" and realm.lower() in KNOWN_CLASSIC_REALMS:
-                connected_realm_id = KNOWN_CLASSIC_REALMS[realm.lower()]
-                logger.info(f"Using known Classic realm ID for {realm}: {connected_realm_id}")
-            # Check if it's a known Retail realm
-            elif game_version == "retail" and realm.lower() in KNOWN_RETAIL_REALMS:
-                connected_realm_id = KNOWN_RETAIL_REALMS[realm.lower()]
-                logger.info(f"Using known Retail realm ID for {realm}: {connected_realm_id}")
-            else:
-                # Try to get from API
-                try:
-                    realm_info = await client._get_realm_info(realm)
-                    connected_realm_id = realm_info.get('connected_realm', {}).get('id')
-                except Exception as e:
-                    logger.error(f"Failed to get realm info for {realm}: {e}")
+            # Get connected realm ID using helper function
+            connected_realm_id = await get_connected_realm_id(realm, game_version, client)
             
             if not connected_realm_id:
                 return {"error": "Could not find connected realm ID"}
