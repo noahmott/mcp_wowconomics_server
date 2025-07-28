@@ -5,8 +5,9 @@ import os
 from dotenv import load_dotenv
 import sys
 
-# Add the app directory to the path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add the project root directory to the path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
 
 # Load environment variables
 load_dotenv()

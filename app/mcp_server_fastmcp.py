@@ -1003,13 +1003,13 @@ async def analyze_item_market_history(
     try:
         logger.info(f"Analyzing market history for item {item_id} on {realm}")
         
-        # Get realm info
+        # Get connected realm ID using centralized helper
         async with BlizzardAPIClient(game_version=game_version) as client:
-            realm_info = await client._get_realm_info(realm)
-            connected_realm_id = realm_info.get('connected_realm', {}).get('id')
+            connected_realm_id = await get_connected_realm_id(realm, game_version, client)
             
             if not connected_realm_id:
-                return {"error": "Could not find connected realm ID"}
+                logger.error(f"Could not find connected realm ID for {realm} ({game_version})")
+                return {"error": f"Could not find connected realm ID for {realm}"}
             
             # Historical data requires persistent storage - returning current analysis
             # Mock analysis structure for future implementation
