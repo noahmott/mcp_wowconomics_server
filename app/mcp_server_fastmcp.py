@@ -24,7 +24,8 @@ from dotenv import load_dotenv
 from fastmcp import FastMCP
 
 # Local imports
-from .api.blizzard_client import BlizzardAPIClient, KNOWN_RETAIL_REALMS as RETAIL_REALMS, BlizzardAPIError
+from .api.blizzard_client import BlizzardAPIClient, BlizzardAPIError
+from .core.constants import KNOWN_RETAIL_REALMS, KNOWN_CLASSIC_REALMS as CLASSIC_REALMS
 from .api.guild_optimizations import OptimizedGuildFetcher
 from .services.activity_logger import ActivityLogger, initialize_activity_logger
 from .services.auction_aggregator import AuctionAggregatorService
@@ -60,29 +61,17 @@ activity_logger: Optional[ActivityLogger] = None
 streaming_service = None
 supabase_client: Optional[SupabaseRealTimeClient] = None
 
-# Known Classic realm IDs (hardcoded for reliability)
-KNOWN_CLASSIC_REALMS = {
-    "mankrik": 4384,
-    "faerlina": 4408,
-    "benediction": 4728,
-    "grobbulus": 4647,
-    "whitemane": 4395,
-    "pagle": 4701,
-    "westfall": 4669,
-    "old-blanchy": 4372
-}
-
-# Use the realm IDs from blizzard_client
-KNOWN_RETAIL_REALMS = RETAIL_REALMS
+# Use the realm IDs from constants
+# (These are imported at the top of the file)
 
 async def get_connected_realm_id(realm: str, game_version: str = "retail", client: BlizzardAPIClient = None) -> Optional[int]:
     """Get connected realm ID with fallback to hardcoded values"""
     realm_lower = realm.lower()
     
     # First check hardcoded IDs
-    if game_version == "classic" and realm_lower in KNOWN_CLASSIC_REALMS:
-        logger.info(f"Using known Classic realm ID for {realm}: {KNOWN_CLASSIC_REALMS[realm_lower]}")
-        return KNOWN_CLASSIC_REALMS[realm_lower]
+    if game_version == "classic" and realm_lower in CLASSIC_REALMS:
+        logger.info(f"Using known Classic realm ID for {realm}: {CLASSIC_REALMS[realm_lower]}")
+        return CLASSIC_REALMS[realm_lower]
     elif game_version == "retail" and realm_lower in KNOWN_RETAIL_REALMS:
         logger.info(f"Using known Retail realm ID for {realm}: {KNOWN_RETAIL_REALMS[realm_lower]}")
         return KNOWN_RETAIL_REALMS[realm_lower]
