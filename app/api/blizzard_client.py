@@ -251,6 +251,9 @@ class BlizzardAPIClient:
             elif "/data/wow/guild/" in endpoint:
                 # Guild endpoints need profile namespace even though they're under /data/
                 namespace = f"profile-{self.region}"
+            elif "/data/wow/item/" in endpoint or "/data/wow/media/" in endpoint:
+                # Item and media data use static namespace
+                namespace = f"static-{self.region}"
             elif "/data/" in endpoint:
                 namespace = f"dynamic-{self.region}"
             else:
