@@ -29,7 +29,7 @@ KNOWN_RETAIL_REALMS = {
     "stormrage": 60,
     "illidan": 57,
     "tichondrius": 11,
-    "mal'ganis": 3681,
+    "mal'ganis": 3684,
     "zul'jin": 3683,
     "moonguard": 3675,
     "wyrmrest-accord": 1171,
