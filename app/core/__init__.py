@@ -1,0 +1,1 @@
+"""Core functionality and configuration for WoW Guild MCP Server"""

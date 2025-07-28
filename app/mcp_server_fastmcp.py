@@ -1066,21 +1066,48 @@ async def get_character_details(
                         logger.error(f"Profile data is not a dict: {type(profile)} - {profile}")
                         return {"error": f"Invalid profile data received from API"}
                     
-                    # Safe navigation for nested fields
+                    # Safe navigation for nested fields - handle both nested and direct string formats
                     race_data = profile.get("race", {})
-                    race_name = race_data.get("name", {}).get("en_US", "Unknown") if isinstance(race_data, dict) else "Unknown"
+                    if isinstance(race_data, dict):
+                        race_name = race_data.get("name")
+                        if isinstance(race_name, dict):
+                            race_name = race_name.get("en_US", "Unknown")
+                        elif not race_name:
+                            race_name = "Unknown"
+                    else:
+                        race_name = str(race_data) if race_data else "Unknown"
                     
                     class_data = profile.get("character_class", {})
-                    class_name = class_data.get("name", {}).get("en_US", "Unknown") if isinstance(class_data, dict) else "Unknown"
+                    if isinstance(class_data, dict):
+                        class_name = class_data.get("name")
+                        if isinstance(class_name, dict):
+                            class_name = class_name.get("en_US", "Unknown")
+                        elif not class_name:
+                            class_name = "Unknown"
+                    else:
+                        class_name = str(class_data) if class_data else "Unknown"
                     
                     spec_data = profile.get("active_spec", {})
-                    spec_name = spec_data.get("name", {}).get("en_US", "Unknown") if isinstance(spec_data, dict) else "Unknown"
+                    if isinstance(spec_data, dict):
+                        spec_name = spec_data.get("name")
+                        if isinstance(spec_name, dict):
+                            spec_name = spec_name.get("en_US", "Unknown")
+                        elif not spec_name:
+                            spec_name = "Unknown"
+                    else:
+                        spec_name = str(spec_data) if spec_data else "Unknown"
                     
                     realm_data = profile.get("realm", {})
-                    realm_name = realm_data.get("name", "Unknown") if isinstance(realm_data, dict) else "Unknown"
+                    if isinstance(realm_data, dict):
+                        realm_name = realm_data.get("name", "Unknown")
+                    else:
+                        realm_name = str(realm_data) if realm_data else "Unknown"
                     
                     faction_data = profile.get("faction", {})
-                    faction_name = faction_data.get("name", "Unknown") if isinstance(faction_data, dict) else "Unknown"
+                    if isinstance(faction_data, dict):
+                        faction_name = faction_data.get("name", "Unknown")
+                    else:
+                        faction_name = str(faction_data) if faction_data else "Unknown"
                     
                     guild_data = profile.get("guild")
                     guild_name = guild_data.get("name") if isinstance(guild_data, dict) else None
@@ -1118,16 +1145,22 @@ async def get_character_details(
                     for item in equipment.get("equipped_items", []):
                         # Safe navigation for item fields
                         slot_data = item.get("slot", {})
-                        slot_name = slot_data.get("name", {}).get("en_US", "Unknown") if isinstance(slot_data, dict) else "Unknown"
+                        if isinstance(slot_data, dict):
+                            slot_name = slot_data.get("name", "Unknown")
+                        else:
+                            slot_name = str(slot_data) if slot_data else "Unknown"
                         
-                        name_data = item.get("name", {})
-                        item_name = name_data.get("en_US", "Unknown") if isinstance(name_data, dict) else str(name_data) if name_data else "Unknown"
+                        # Handle name - it's often a direct string
+                        item_name = item.get("name", "Unknown")
                         
                         level_data = item.get("level", {})
                         item_level = level_data.get("value", 0) if isinstance(level_data, dict) else 0
                         
                         quality_data = item.get("quality", {})
-                        quality_name = quality_data.get("name", {}).get("en_US", "Unknown") if isinstance(quality_data, dict) else "Unknown"
+                        if isinstance(quality_data, dict):
+                            quality_name = quality_data.get("name", "Unknown")
+                        else:
+                            quality_name = str(quality_data) if quality_data else "Unknown"
                         
                         item_data = item.get("item", {})
                         item_id = item_data.get("id") if isinstance(item_data, dict) else None
@@ -1188,10 +1221,24 @@ async def get_character_details(
                     for spec in specs.get("specializations", []):
                         # Safe navigation for specialization data
                         spec_detail = spec.get("specialization", {})
-                        spec_name = spec_detail.get("name", {}).get("en_US", "Unknown") if isinstance(spec_detail, dict) else "Unknown"
+                        if isinstance(spec_detail, dict):
+                            spec_name = spec_detail.get("name")
+                            # Handle both nested dict and direct string formats
+                            if isinstance(spec_name, dict):
+                                spec_name = spec_name.get("en_US", "Unknown")
+                            elif isinstance(spec_name, str):
+                                # Name is already a string, use as-is
+                                pass
+                            else:
+                                spec_name = "Unknown"
+                        else:
+                            spec_name = "Unknown"
                         
-                        spec_role = spec_detail.get("role", {})
-                        role_name = spec_role.get("name", "Unknown") if isinstance(spec_role, dict) else "Unknown"
+                        spec_role = spec_detail.get("role", {}) if isinstance(spec_detail, dict) else {}
+                        if isinstance(spec_role, dict):
+                            role_name = spec_role.get("name", "Unknown")
+                        else:
+                            role_name = str(spec_role) if spec_role else "Unknown"
                         
                         spec_info = {
                             "name": spec_name,
@@ -1203,7 +1250,15 @@ async def get_character_details(
                         # Get talents
                         for talent in spec.get("talents", []):
                             talent_data = talent.get("talent", {})
-                            talent_name = talent_data.get("name", {}).get("en_US", "Unknown") if isinstance(talent_data, dict) else "Unknown"
+                            if isinstance(talent_data, dict):
+                                talent_name = talent_data.get("name")
+                                # Handle both nested dict and direct string formats
+                                if isinstance(talent_name, dict):
+                                    talent_name = talent_name.get("en_US", "Unknown")
+                                elif not isinstance(talent_name, str):
+                                    talent_name = "Unknown"
+                            else:
+                                talent_name = "Unknown"
                             spec_info["talents"].append({
                                 "name": talent_name,
                                 "tier": talent.get("tier_index"),
@@ -1213,7 +1268,15 @@ async def get_character_details(
                         # Get PvP talents
                         for pvp_talent in spec.get("pvp_talents", []):
                             pvp_talent_data = pvp_talent.get("talent", {})
-                            pvp_talent_name = pvp_talent_data.get("name", {}).get("en_US", "Unknown") if isinstance(pvp_talent_data, dict) else "Unknown"
+                            if isinstance(pvp_talent_data, dict):
+                                pvp_talent_name = pvp_talent_data.get("name")
+                                # Handle both nested dict and direct string formats
+                                if isinstance(pvp_talent_name, dict):
+                                    pvp_talent_name = pvp_talent_name.get("en_US", "Unknown")
+                                elif not isinstance(pvp_talent_name, str):
+                                    pvp_talent_name = "Unknown"
+                            else:
+                                pvp_talent_name = "Unknown"
                             spec_info["pvp_talents"].append({
                                 "name": pvp_talent_name
                             })
@@ -1222,7 +1285,15 @@ async def get_character_details(
                     
                     # Safe navigation for active specialization
                     active_spec = specs.get("active_specialization", {})
-                    active_spec_name = active_spec.get("name", {}).get("en_US", "Unknown") if isinstance(active_spec, dict) else "Unknown"
+                    if isinstance(active_spec, dict):
+                        active_spec_name = active_spec.get("name")
+                        # Handle both nested dict and direct string formats
+                        if isinstance(active_spec_name, dict):
+                            active_spec_name = active_spec_name.get("en_US", "Unknown")
+                        elif not isinstance(active_spec_name, str):
+                            active_spec_name = "Unknown"
+                    else:
+                        active_spec_name = "Unknown"
                     
                     character_data["specializations"] = {
                         "active_specialization": active_spec_name,
@@ -1320,14 +1391,26 @@ async def get_character_details(
                     active_title_data = titles.get("active_title", {})
                     active_title_name = None
                     if isinstance(active_title_data, dict):
-                        title_name_data = active_title_data.get("name", {})
-                        active_title_name = title_name_data.get("en_US") if isinstance(title_name_data, dict) else None
+                        title_name_data = active_title_data.get("name")
+                        # Handle both nested dict and direct string formats
+                        if isinstance(title_name_data, dict):
+                            active_title_name = title_name_data.get("en_US")
+                        elif isinstance(title_name_data, str):
+                            active_title_name = title_name_data
+                        else:
+                            active_title_name = None
                     
                     # Safe navigation for title list
                     title_list = []
                     for t in titles.get("titles", [])[:10]:
-                        t_name_data = t.get("name", {})
-                        t_name = t_name_data.get("en_US", "Unknown") if isinstance(t_name_data, dict) else "Unknown"
+                        t_name_data = t.get("name")
+                        # Handle both nested dict and direct string formats
+                        if isinstance(t_name_data, dict):
+                            t_name = t_name_data.get("en_US", "Unknown")
+                        elif isinstance(t_name_data, str):
+                            t_name = t_name_data
+                        else:
+                            t_name = "Unknown"
                         title_list.append(t_name)
                     
                     character_data["titles"] = {

@@ -1,690 +1,370 @@
+# WoW Guild Analytics MCP Server
 
-## 📁 Project Structure
+A powerful Model Context Protocol (MCP) server that provides AI assistants with comprehensive World of Warcraft guild analytics, member performance tracking, auction house monitoring, and data visualization capabilities. Built with FastMCP 2.0 and optimized for high performance with Redis caching and modular architecture.
 
-```
-guilddiscordbot/
-├── app/                   # Main application directory
-│   ├── api/              # Blizzard API client and integrations
-│   ├── models/           # Database models
-│   ├── services/         # Business logic services
-│   ├── utils/            # Utility functions
-│   ├── visualization/    # Chart generation
-│   ├── workflows/        # Complex multi-step operations
-│   └── mcp_server_fastmcp.py  # Main MCP server
-├── config/               # Configuration files
-│   ├── docker/           # Docker configuration
-│   └── supabase/         # Database schema
-├── docs/                 # Documentation
-│   ├── api/              # API documentation
-│   ├── architecture/     # System design docs
-│   └── development/      # Development guides
-└── data/                 # Data storage
-    └── historical/       # Historical data cache
-```
+## Features
 
-### 🚀 Quick Start
+### 🏰 Guild Management Tools
+- **Guild Performance Analysis** - Comprehensive guild metrics with AI-powered insights
+- **Member List Management** - Detailed roster with sorting and filtering options
+- **Raid Progress Tracking** - Visual raid progression charts and statistics
+- **Member Performance Comparison** - Compare metrics across guild members
 
+### 💰 Economy & Auction House
+- **Real-time Auction Snapshots** - Current market data with price aggregation
+- **Economy Trend Analysis** - Historical price tracking up to 30 days
+- **Market Opportunity Scanner** - Find profitable items with customizable margins
+- **Item Market History** - Detailed analysis of specific item trends
+
+### 👤 Character Analytics
+- **Member Performance Analysis** - Individual character progression tracking
+- **Character Details Lookup** - Comprehensive character information including:
+  - Equipment and item levels
+  - Specializations and talents
+  - Achievements and statistics
+  - PvP ratings and rankings
+  - Mythic+ scores
+  - Collections and titles
+
+### 🌍 Realm & Server Tools
+- **Realm Status Monitoring** - Server status and population data
+- **Connected Realm Lookup** - Find connected realm IDs for API calls
+- **Classic Realm Support** - Full support for Classic progression servers
+
+### 📊 Data Visualization
+- **Raid Progress Charts** - Visual representation of guild raid completion
+- **Performance Comparison Graphs** - Side-by-side member metric comparison
+- **Market Trend Visualizations** - Price history charts and analysis
+
+### 🔧 Diagnostic & Testing
+- **API Connection Testing** - Verify Blizzard API connectivity
+- **Classic Auction House Testing** - Test Classic realm auction data
+- **Supabase Connection Verification** - Database connectivity checks
+
+## Technical Architecture
+
+### Core Technologies
+- **FastMCP 2.0+** - Model Context Protocol implementation
+- **FastAPI** - Modern async web framework
+- **Redis 6.2** - High-performance caching layer
+- **SQLAlchemy 2.0** - Async database ORM
+- **Supabase** - Cloud database with real-time features
+
+### Performance Optimizations
+- **Intelligent Redis Caching** - Reduces API calls significantly
+- **15-Day Guild Roster Cache** - Long-term caching for stable data
+- **Hourly Economy Snapshots** - Balanced freshness vs. API limits
+- **Async/Await Throughout** - Non-blocking I/O operations
+- **Modular Tool Design** - 82% code reduction through refactoring
+
+### AI Integration
+- **OpenAI GPT-4o-mini** - Intelligent analysis and insights
+- **LangChain/LangGraph** - Sophisticated workflow orchestration
+- **Context-Aware Analysis** - Tailored insights based on data patterns
+
+## Quick Start
+
+### Prerequisites
+- Python 3.9+
+- Redis server (local or cloud)
+- Blizzard API credentials
+- (Optional) Supabase account
+- (Optional) OpenAI API key
+
+### Installation
+
+1. Clone the repository:
 ```bash
-# Using Docker
-docker-compose -f config/docker/docker-compose.yml up
-
-# Local development
-python app/mcp_server_fastmcp.py
+git clone [repository-url]
+cd guilddiscordbot
 ```
 
-### 📖 Documentation
-
-- [Architecture Overview](docs/architecture/DESIGN_DOCUMENT.md)
-- [MCP Usage Guide](docs/api/MCP_USAGE.md)
-- [Development Standards](docs/development/PEP8_COMPLIANCE.md)
-
-<div align="center">
-  
-# 🏰 WoW Guild Analytics MCP Server
-
-### Advanced Guild Management and Performance Analysis Tool
-### Updated July 2025
-
-<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_warrior.jpg" width="40" alt="Warrior">
-<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_paladin.jpg" width="40" alt="Paladin">
-<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_hunter.jpg" width="40" alt="Hunter">
-<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_rogue.jpg" width="40" alt="Rogue">
-<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_priest.jpg" width="40" alt="Priest">
-<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_shaman.jpg" width="40" alt="Shaman">
-<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_mage.jpg" width="40" alt="Mage">
-<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_warlock.jpg" width="40" alt="Warlock">
-<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_monk.jpg" width="40" alt="Monk">
-<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_druid.jpg" width="40" alt="Druid">
-<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_demonhunter.jpg" width="40" alt="Demon Hunter">
-<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_deathknight.jpg" width="40" alt="Death Knight">
-<img src="https://wow.zamimg.com/images/wow/icons/large/classicon_evoker.jpg" width="40" alt="Evoker">
-
-[![Python](https://img.shields.io/badge/python-3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
-[![FastMCP](https://img.shields.io/badge/FastMCP-2.0-FF6B6B?style=for-the-badge&logo=fastapi&logoColor=white)](https://github.com/jlowin/fastmcp)
-[![Battle.net](https://img.shields.io/badge/battle.net-API-00AEFF?style=for-the-badge&logo=battle.net&logoColor=white)](https://develop.battle.net)
-[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-74aa9c?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com)
-[![Heroku](https://img.shields.io/badge/heroku-deployed-430098?style=for-the-badge&logo=heroku&logoColor=white)](https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/)
-[![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](https://opensource.org/licenses/MIT)
-
-**A comprehensive Model Context Protocol server for World of Warcraft guild analytics and management**
-
-*Empowering guild officers and leaders with AI-powered insights, performance tracking, and member analysis*
-
-</div>
-
-<div align="center">
-
-[![FastAPI](https://img.shields.io/badge/fastapi-0.116.1-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
-[![Redis](https://img.shields.io/badge/redis-6.2.0-DC382D?style=flat-square&logo=redis&logoColor=white)](https://redis.io)
-[![Matplotlib](https://img.shields.io/badge/matplotlib-3.8.0-11557c?style=flat-square&logo=python&logoColor=white)](https://matplotlib.org)
-[![Seaborn](https://img.shields.io/badge/seaborn-0.13.0-4c72b0?style=flat-square&logo=python&logoColor=white)](https://seaborn.pydata.org)
-[![LangChain](https://img.shields.io/badge/langchain-0.3.14-1C3A3A?style=flat-square&logo=langchain&logoColor=white)](https://langchain.com)
-[![Supabase](https://img.shields.io/badge/supabase-2.14.0-3ECF8E?style=flat-square&logo=supabase&logoColor=white)](https://supabase.com)
-[![FastMCP](https://img.shields.io/badge/FastMCP-2.0-FF6B6B?style=flat-square&logo=fastapi&logoColor=white)](https://github.com/jlowin/fastmcp)
-
-[Overview](#-overview) • [Guild Analytics](#-guild-analytics-tools) • [Features](#-key-features) • [Tools](#-complete-tool-reference) • [Quick Start](#-quick-start)
-
-</div>
-
----
-
-## 🆕 What's New (July 2025)
-
-### Latest Updates
-- **Enhanced Realm Connectivity**: Improved realm lookup system using both connected-realm index and hardcoded fallbacks for reliability
-- **Robust Error Handling**: Better handling of Blizzard API failures with fallback mechanisms
-- **Performance Optimizations**: In-memory caching reduces API calls by up to 90% for frequently accessed data
-
-### Core Features 
-- **Fixed Retail Realm Lookups**: Resolved issues with connected realm discovery using index endpoint instead of broken search API
-- **Realm Status Tool**: New `get_realm_status` tool for diagnosing realm connectivity and finding connected realm IDs
-- **Redis Caching Integration**: Guild rosters cached for 15 days, auction house data for 30 days
-- **Economy Snapshot System**: Hourly market data capture with trend analysis over 30-day periods
-- **AI-Powered Guild Insights**: OpenAI GPT-4o-mini integration for intelligent analysis and recommendations
-- **Advanced Chart Generation**: Matplotlib/seaborn visualization for raid progress and performance metrics
-- **Multi-Version Support**: Full compatibility with both Classic and Retail WoW APIs
-- **Real-time Activity Tracking**: Comprehensive Supabase integration for usage analytics
-- **16 Analytics Tools**: 8 guild management + 8 market intelligence tools with realm diagnostics
-
-## 📚 Overview
-
-This MCP server provides guild officers, leaders, and WoW community managers with comprehensive analytics tools for World of Warcraft guild management and performance analysis. Built on FastMCP 2.0 with AI-powered insights, the system enables deep understanding of:
-
-- **Guild Performance Analytics** - Member progression, activity patterns, and performance metrics
-- **Individual Member Analysis** - Character profiles, equipment optimization, and achievement tracking  
-- **Raid Team Management** - Progression tracking, performance comparisons, and team composition
-- **Market Intelligence** - Auction house monitoring and economic opportunities for guild funding
-
-## 🏰 Guild Analytics Tools
-
-<table>
-<tr>
-<td>
-
-### Performance Analysis
-<img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_head_dragon_01.jpg" width="25" align="left">
-
-- **Guild Overview** - Comprehensive performance metrics with AI insights
-- **Member Tracking** - Individual character progression and statistics
-- **Raid Progress** - Visual charts of raid team advancement
-- **Comparative Analysis** - Side-by-side member performance comparison
-
-</td>
-<td>
-
-### Management Features
-<img src="https://wow.zamimg.com/images/wow/icons/large/achievement_guildperk_everybodysfriend.jpg" width="25" align="left">
-
-- **Member Roster** - Detailed guild member listings with sorting/filtering
-- **Activity Monitoring** - Real-time tracking of guild analytics usage
-- **Performance Charts** - Visual representations of guild and member data
-- **AI Recommendations** - Intelligent suggestions for guild improvement
-
-</td>
-</tr>
-<tr>
-<td>
-
-### Market Intelligence
-<img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_coin_01.jpg" width="25" align="left">
-
-- **Auction House Monitoring** - Current market snapshots and trends
-- **Profit Opportunities** - Market analysis for guild funding strategies
-- **Item Lookup** - Detailed item information and market values
-- **Cross-Realm Analysis** - Compare markets across different servers
-
-</td>
-<td>
-
-### Technical Features
-<img src="https://wow.zamimg.com/images/wow/icons/large/trade_engineering.jpg" width="25" align="left">
-
-- **Multi-Version Support** - Both Classic and Retail WoW compatibility
-- **Real-time Logging** - Supabase integration for activity tracking
-- **Redis Caching** - Optimized performance for frequent queries
-- **Chart Generation** - Matplotlib/seaborn visualization without Chrome
-
-</td>
-</tr>
-</table>
-
-## 🔍 Key Features
-
-### AI-Powered Analysis Architecture
-
-```mermaid
-graph LR
-    A[Blizzard API] --> B[FastMCP Server]
-    B --> C[Redis Cache]
-    B --> D[OpenAI GPT-4o-mini]
-    C --> E[Guild Analytics]
-    D --> E
-    E --> F[LangGraph Workflows]
-    F --> G[Chart Generation]
-    E --> H[Supabase Logging]
-    G --> I[Visual Reports]
-```
-
-### Advanced Analytics Capabilities
-
-- **AI Guild Insights** - GPT-4o-mini powered analysis and recommendations
-- **Performance Metrics** - Member progression, activity patterns, achievement tracking
-- **Visual Analytics** - Matplotlib/seaborn charts for raid progress and comparisons
-- **Real-time Monitoring** - Supabase activity logging and usage analytics
-- **Redis Caching** - 15-day guild roster cache, hourly economy snapshots
-- **Historical Analysis** - 30-day price trend data for market analysis
-
-## 🛠️ Complete Tool Reference
-
-<details>
-<summary><b>Click to view all 17 analytics tools</b></summary>
-
-### 🏰 Guild & Character Analytics Tools (8)
-
-<div align="center">
-<img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_tournaments_banner_human.jpg" width="30" alt="Alliance">
-<img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_tournaments_banner_orc.jpg" width="30" alt="Horde">
-</div>
-
-| Tool | Purpose | Output Format |
-|------|---------|---------------|
-| `analyze_guild_performance` | Comprehensive guild analysis with AI insights | Detailed performance report with recommendations |
-| `get_guild_member_list` | Guild roster with sorting and filtering (Redis cached) | JSON member data with cache status |
-| `analyze_member_performance` | Individual character analysis | Equipment, achievements, and progression data |
-| `get_character_details` | Comprehensive character information | Detailed gear, specs, achievements, PvP, and more |
-| `generate_raid_progress_chart` | Visual raid progression tracking | Matplotlib/seaborn charts (PNG) |
-| `compare_member_performance` | Side-by-side member comparisons | Comparative analysis with visualizations |
-| `test_supabase_connection` | Activity logging and monitoring | Connection status and usage analytics |
-
-### 📈 Market Intelligence Tools (9)
-
-<div align="center">
-<img src="https://wow.zamimg.com/images/wow/icons/large/inv_misc_coin_01.jpg" width="30" alt="Gold">
-<img src="https://wow.zamimg.com/images/wow/icons/large/trade_alchemy.jpg" width="30" alt="Alchemy">
-<img src="https://wow.zamimg.com/images/wow/icons/large/trade_blacksmithing.jpg" width="30" alt="Blacksmithing">
-<img src="https://wow.zamimg.com/images/wow/icons/large/trade_engraving.jpg" width="30" alt="Enchanting">
-<img src="https://wow.zamimg.com/images/wow/icons/large/trade_herbalism.jpg" width="30" alt="Herbalism">
-<img src="https://wow.zamimg.com/images/wow/icons/large/trade_mining.jpg" width="30" alt="Mining">
-</div>
-
-| Tool | Purpose | Output Format |
-|------|---------|---------------|
-| `get_realm_status` | Realm status and connected realm ID lookup | Realm information with population and ID |
-| `get_auction_house_snapshot` | Current auction house data | Real-time market snapshots |
-| `capture_economy_snapshot` | Hourly economy data capture (new) | Snapshot results with item statistics |
-| `get_economy_trends` | Historical price trends (new) | 30-day price history for items |
-| `analyze_item_market_history` | Market trends and analysis | Price history and trend analysis |
-| `find_market_opportunities` | Profit margin identification | Market opportunity reports |
-| `lookup_item_details` | Item information lookup | Detailed item metadata |
-| `lookup_multiple_items` | Batch item information | Multiple item data analysis |
-
-### 🔧 Utility Tools (1)
-
-| Tool | Purpose | Output Format |
-|------|---------|---------------|
-| `test_classic_auction_house` | Classic WoW auction house testing | Diagnostic information |
-
-</details>
-
-## 🔧 Recent Improvements
-
-### Connected Realm API Fix (July 2025)
-
-The Blizzard API's connected realm search endpoint was found to be non-functional for retail realms. We've implemented a more robust solution:
-
-- **Index-based lookup**: Instead of using the broken search endpoint, we now fetch the connected realm index and search through it
-- **Known realm IDs**: Common retail realms have hardcoded connected realm IDs for faster lookups
-- **In-memory caching**: Connected realm lookups are cached to reduce API calls
-- **Better error handling**: More detailed logging to diagnose realm connection issues
-
-This fix ensures the auction house snapshot tools work properly for all retail realms including Area-52, Stormrage, Tichondrius, and others.
-
-### Redis Storage Enhancement (July 2025)
-
-Fixed critical Redis storage issues for proper data persistence:
-
-- **Encoding Fix**: All Redis operations now properly encode/decode data as bytes
-- **Guild Roster Caching**: 15-day TTL with automatic cache invalidation
-- **Economy Snapshots**: Hourly captures with 30-day historical retention
-- **Performance**: ~90% reduction in API calls for frequently accessed data
-
-This ensures reliable data storage and retrieval for both guild rosters and auction house snapshots.
-
-## 📊 Data Sources & Coverage
-
-### Available Data Types
-
-- **Guild Information** - Complete roster, activity, and progression data
-- **Character Profiles** - Equipment, achievements, statistics, and performance metrics  
-- **Market Data** - Real-time auction house snapshots and item information
-- **Activity Logs** - Comprehensive usage tracking and analytics via Supabase
-
-### API Coverage & Capabilities
-
-- **Realm Coverage**: All US/EU realms supported via Blizzard Battle.net API
-- **WoW Versions**: Full support for both Classic and Retail with proper namespace handling
-- **Data Freshness**: Real-time guild and character data, hourly auction house updates
-- **Redis Caching**: 
-  - Guild rosters: 15-day TTL (reduces API calls by ~90%)
-  - Economy snapshots: Hourly captures with 30-day retention
-  - Automatic cache invalidation after TTL expiry
-- **Storage**: Supabase for activity tracking with 30-day retention
-
-### Guild Analytics Capabilities
-
-The system provides comprehensive guild analysis through multiple data sources:
-
-- **Member Tracking**: Real-time roster data with character progression metrics
-- **Performance Analysis**: Equipment optimization, achievement tracking, activity patterns
-- **Raid Progression**: Visual charts showing team advancement and performance trends
-- **AI Insights**: GPT-4o-mini powered recommendations for guild improvement strategies
-
-### Current System Features
-
-✅ **Optimized for Guild Management:**
-
-1. **Real-time Data**: Direct Blizzard API integration for current guild and member information
-
-2. **AI-Enhanced Analysis**: OpenAI integration provides intelligent insights and recommendations
-
-3. **Visual Reports**: Matplotlib/seaborn chart generation without external dependencies
-
-4. **Activity Monitoring**: Comprehensive Supabase logging for usage analytics and performance tracking
-
-5. **Multi-Version Support**: Handles both Classic and Retail WoW with appropriate API namespaces
-
-Guild officers can leverage these tools for:
-- **Member recruitment** and retention analysis
-- **Raid team optimization** and progression tracking  
-- **Performance monitoring** and improvement recommendations
-- **Market opportunities** for guild funding strategies
-
-## 🚀 Quick Start
-
-### Quick Connection for Guild Officers
-
-Connect directly using this MCP endpoint:
-```
-https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/mcp/
-```
-
-### Option 1: Connect via MCP Client (Recommended)
-
-Guild officers can directly connect to our hosted MCP endpoint without local installation:
-
-```python
-from fastmcp import Client
-
-# Connect to the guild analytics server
-async with Client("https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/mcp/") as client:
-    # List available guild tools
-    tools = await client.list_tools()
-    
-    # Analyze your guild performance
-    result = await client.call_tool(
-        "analyze_guild_performance",
-        {
-            "guild_name": "YourGuildName", 
-            "realm_slug": "stormrage", 
-            "region": "us"
-        }
-    )
-```
-
-**Benefits:**
-- No local setup required
-- Always up-to-date with latest AI analysis methods  
-- Automatic chart generation and visualization
-- Maintained infrastructure with real-time monitoring
-
-### Option 2: Local Installation
-
-For guild officers who need custom modifications or enhanced privacy:
-
-#### Prerequisites
-
-- Python 3.12+ with data science libraries
-- Blizzard API Credentials ([Developer Access](https://develop.battle.net/access/))
-- OpenAI API Key for AI-powered insights
-- Redis 6.2+ for caching (required for roster caching and economy snapshots)
-- Supabase account for activity tracking (optional)
-
-#### Installation
-
+2. Create virtual environment:
 ```bash
-# Clone the repository
-git clone https://github.com/noahmott/mcp_wowconomics_server.git
-cd mcp_wowconomics_server
-
-# Create virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-# Add your API credentials to .env:
-# - BATTLE_NET_CLIENT_ID and BATTLE_NET_CLIENT_SECRET
-# - OPENAI_API_KEY for AI insights
-# - SUPABASE_URL and SUPABASE_KEY for activity tracking
-
-# Start the server
-python app/mcp_server_fastmcp.py
 ```
 
-## 🚀 Redis-Powered Caching & Performance
-
-### Overview
-
-The system uses Heroku Redis for intelligent caching, reducing Blizzard API calls by up to 90% while providing faster response times and historical data tracking.
-
-### Guild Roster Caching
-
-The `get_guild_member_list` tool includes intelligent 15-day caching:
-
-```python
-# First call fetches from API and caches for 15 days
-result = await get_guild_member_list(
-    realm="stormrage",
-    guild_name="YourGuild"
-)
-# Response includes: "from_cache": false, "cache_age_days": 0
-
-# Subsequent calls use cached data
-result = await get_guild_member_list(
-    realm="stormrage", 
-    guild_name="YourGuild"
-)
-# Response includes: "from_cache": true, "cache_age_days": 2
-```
-
-**Benefits:**
-- ⚡ Instant response for cached guilds
-- 📊 Reduces API calls by ~90% for active guilds
-- 🔄 Automatic cache invalidation after 15 days
-- 📈 Tracks cache age for transparency
-
-### Economy Snapshot System
-
-Hourly auction house snapshots with 30-day retention:
-
-```python
-# Capture hourly snapshots for multiple realms
-snapshot = await capture_economy_snapshot(
-    realms=["stormrage", "area-52", "tichondrius"],
-    region="us",
-    force_update=False  # Skip if snapshot exists within last hour
-)
-
-# Retrieve historical price trends
-trends = await get_economy_trends(
-    realm="stormrage",
-    item_ids=[168487, 171276, 171315],  # Zin'anthid, other herbs
-    hours=168  # Last 7 days
-)
-```
-
-## 📖 Usage Examples
-
-### Guild Performance Analysis
-
-```python
-# Comprehensive guild analysis with AI insights
-guild_analysis = await analyze_guild_performance(
-    guild_name="YourGuildName",
-    realm_slug="stormrage",
-    region="us"
-)
-
-# AI-powered insights and recommendations
-print(f"Guild Score: {guild_analysis['overall_score']}/10")
-print(f"AI Recommendations: {guild_analysis['ai_insights']}")
-print(f"Member Activity: {guild_analysis['activity_summary']}")
-```
-
-### Member Performance Tracking
-
-<div align="center">
-<img src="https://wow.zamimg.com/images/wow/icons/large/achievement_pvp_a_01.jpg" width="35" alt="PvP">
-<img src="https://wow.zamimg.com/images/wow/icons/large/pvecurrency-valor.jpg" width="35" alt="Valor">
-</div>
-
-```python
-# Analyze individual member performance
-member_analysis = await analyze_member_performance(
-    character_name="PlayerName",
-    realm_slug="area-52",
-    region="us"
-)
-
-# Equipment and progression details
-print(f"Item Level: {member_analysis['average_item_level']}")
-print(f"Mythic+ Score: {member_analysis['mythic_plus_score']}")
-print(f"Recent Achievements: {member_analysis['recent_achievements']}")
-```
-
-### Comprehensive Character Details
-
-```python
-# Get detailed character information including gear, specs, and more
-character_details = await get_character_details(
-    realm="lightbringer",
-    character_name="Bathtime",
-    sections=["profile", "equipment", "specializations", "pvp", "mythic_plus"],
-    game_version="retail"
-)
-
-# Access detailed equipment information
-for item in character_details['data']['equipment']['equipped_items']:
-    print(f"{item['slot']}: {item['name']} (ilvl {item['item_level']})")
-
-# Available sections:
-# - profile: Basic info (level, class, guild, item levels)
-# - equipment: All gear with enchants and sockets
-# - specializations: Talent builds and PvP talents
-# - achievements: Points and recent achievements
-# - statistics: Character statistics
-# - media: Avatar and character renders
-# - pvp: Honor level, kills, and arena ratings
-# - appearance: Transmog and customization
-# - collections: Mounts and pets
-# - titles: Available and active titles
-# - mythic_plus: M+ rating and best runs
-# - all: Retrieve everything
-```
-
-### Raid Progress Visualization
-
-<div align="center">
-<img src="https://wow.zamimg.com/images/wow/icons/large/inv_relics_hourglass.jpg" width="40" alt="Mythic+">
-<img src="https://wow.zamimg.com/images/wow/icons/large/spell_nature_thorns.jpg" width="40" alt="Tank">
-<img src="https://wow.zamimg.com/images/wow/icons/large/spell_holy_flashheal.jpg" width="40" alt="Healer">
-<img src="https://wow.zamimg.com/images/wow/icons/large/inv_sword_27.jpg" width="40" alt="DPS">
-</div>
-
-```python
-# Generate visual raid progression charts
-chart = await generate_raid_progress_chart(
-    guild_name="YourGuildName",
-    realm_slug="stormrage",
-    region="us",
-    raid_tier="current"
-)
-
-# Returns matplotlib chart as PNG for sharing
-print(f"Chart saved: {chart['chart_path']}")
-print(f"Progress Summary: {chart['progress_summary']}")
-```
-
-### Market Opportunities for Guild Funding
-
-```python
-# Find profitable market opportunities
-opportunities = await find_market_opportunities(
-    realm_slug="stormrage",
-    region="us",
-    min_profit_margin=20
-)
-
-# Help fund guild activities through market analysis
-for opportunity in opportunities['profitable_items']:
-    print(f"Item: {opportunity['item_name']}")
-    print(f"Profit Margin: {opportunity['profit_percentage']}%")
-    print(f"Potential Daily Profit: {opportunity['estimated_profit']}g")
-```
-
-## 🔌 MCP Integration for Guild Management
-
-### Supported MCP Clients
-
-Guild officers can connect using any MCP-compatible client:
-
-- **Claude Desktop** - For interactive guild analysis and AI-powered insights
-- **Python FastMCP** - For programmatic guild management workflows
-- **Custom MCP Clients** - Any client implementing the MCP protocol
-
-### Connection Details
-
-```yaml
-Server Endpoint: https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/mcp/
-Protocol: MCP 2.0 (HTTP Transport with SSE)
-Authentication: None required for public guild data
-Rate Limits: 100 requests/minute per client
-Features: AI insights, chart generation, real-time activity tracking
-```
-
-### Example: Guild Management Notebook
-
-```python
-import asyncio
-from fastmcp import Client
-import matplotlib.pyplot as plt
-
-async def analyze_guild_comprehensive(guild_name, realm, region="us"):
-    """Comprehensive guild analysis workflow"""
-    async with Client("https://wow-guild-mcp-server-7f17b3f6ea0a.herokuapp.com/mcp/") as client:
-        # Get guild performance analysis
-        performance = await client.call_tool(
-            "analyze_guild_performance",
-            {
-                "guild_name": guild_name, 
-                "realm_slug": realm, 
-                "region": region
-            }
-        )
-        
-        # Generate raid progress chart
-        chart = await client.call_tool(
-            "generate_raid_progress_chart",
-            {
-                "guild_name": guild_name,
-                "realm_slug": realm,
-                "region": region
-            }
-        )
-        
-        return performance, chart
-
-# Use for guild management
-performance, chart = await analyze_guild_comprehensive("YourGuild", "stormrage")
-print(f"Guild Health Score: {performance['overall_score']}")
-print(f"AI Recommendations: {performance['ai_insights']}")
-```
-
-## 📊 Data Export & Sharing
-
-The server supports multiple export formats for guild management:
-
-- **PNG Charts** - Visual raid progress and performance charts for sharing
-- **JSON Reports** - Detailed guild and member analysis data
-- **CSV Data** - Member statistics and performance metrics
-- **Activity Logs** - Comprehensive usage analytics via Supabase
-
-## 🧪 Testing & Monitoring Tools
-
-The project includes comprehensive testing utilities in the `tests/redis/` directory:
-
-### Redis Monitoring Scripts
-
-- **`view_redis_snapshots.py`** - View all stored economy snapshots and guild caches
-- **`test_redis_storage.py`** - Test Redis connection and basic storage operations
-- **`test_guild_caching.py`** - Verify guild roster caching functionality
-- **`force_snapshot.py`** - Manually trigger economy snapshots for testing
-
-### Usage Example
-
+3. Install dependencies:
 ```bash
-# View current Redis data
-python tests/redis/view_redis_snapshots.py
-
-# Test guild caching
-python tests/redis/test_guild_caching.py
-
-# Monitor Redis health
-heroku redis:info --app wow-guild-mcp-server
+pip install -r requirements.txt
 ```
 
-## 🤝 Contributing to Guild Analytics
+4. Configure environment variables:
+```bash
+cp .env.example .env
+# Edit .env with your credentials
+```
 
-We welcome contributions from the WoW community:
+### Required Environment Variables
 
-1. **Feature Requests** - Suggest new guild analytics tools
-2. **AI Improvements** - Enhance recommendation algorithms
-3. **Visualization Updates** - Improve chart types and layouts
-4. **Community Feedback** - Share how you use the analytics
+```env
+# Blizzard API (Required)
+BLIZZARD_CLIENT_ID=your_client_id
+BLIZZARD_CLIENT_SECRET=your_client_secret
 
-### Citation
+# Redis (Required for caching)
+REDIS_URL=redis://localhost:6379  # Or your Heroku Redis URL
 
-If you use this tool for guild management or research, please reference:
+# OpenAI (Optional - for AI analysis)
+OPENAI_API_KEY=your_openai_key
 
-```bibtex
-@software{wow_guild_analytics,
-  author = {Mott, Noah},
-  title = {WoW Guild Analytics MCP Server},
-  year = {YYYY},
-  month = {MMM},
-  publisher = {GitHub},
-  url = {https://github.com/noahmott/mcp_wowconomics_server}
+# Supabase (Optional - for activity logging)
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_key
+```
+
+### Running the Server
+
+#### Development Mode
+```bash
+python -m app.mcp_server_fastmcp
+```
+
+#### Production Mode (with Gunicorn)
+```bash
+gunicorn app.mcp_server_fastmcp:app -w 4 -k uvicorn.workers.UvicornWorker
+```
+
+#### Docker Compose (Recommended)
+```bash
+docker-compose -f config/docker/docker-compose.yml up
+```
+
+## Usage with AI Assistants
+
+### Claude Desktop Integration
+
+1. Add to Claude Desktop configuration:
+```json
+{
+  "mcpServers": {
+    "wow-guild": {
+      "command": "python",
+      "args": ["-m", "app.mcp_server_fastmcp"],
+      "cwd": "/path/to/guilddiscordbot",
+      "env": {
+        "BLIZZARD_CLIENT_ID": "your_client_id",
+        "BLIZZARD_CLIENT_SECRET": "your_client_secret",
+        "REDIS_URL": "redis://localhost:6379"
+      }
+    }
+  }
 }
 ```
 
-## 📜 License
+2. Restart Claude Desktop to load the MCP server
 
-This project is licensed under the MIT License, encouraging community use and collaboration.
+### Example Queries
 
-## 🙏 Acknowledgments
+```text
+"Analyze the performance of guild Elevate on Stormrage"
 
-- **Blizzard Entertainment** - For providing comprehensive Battle.net API documentation and access
-- **FastMCP Team** - For the Model Context Protocol implementation  
-- **OpenAI** - For GPT-4o-mini integration enabling AI-powered guild insights
-- **WoW Community** - For feedback and feature requests
+"Show me the current auction house prices for Flask of Power on Mankrik Classic"
+
+"Compare the item levels of the top 5 DPS members in Method on Tarren Mill"
+
+"Find market opportunities on Area-52 with at least 50% profit margin"
+
+"Generate a raid progress chart for Liquid on Illidan"
+```
+
+## Available MCP Tools
+
+### Guild Tools
+- `analyze_guild_performance` - Comprehensive guild analysis with AI insights
+- `get_guild_member_list` - Retrieve and sort guild roster
+
+### Member Tools  
+- `analyze_member_performance` - Individual character performance metrics
+- `get_character_details` - Full character profile data
+
+### Auction Tools
+- `get_auction_house_snapshot` - Current market prices
+- `capture_economy_snapshot` - Store hourly market data
+- `get_economy_trends` - Historical price analysis
+- `find_market_opportunities` - Profitable item scanner
+- `analyze_item_market_history` - Single item trend analysis
+
+### Item Tools
+- `lookup_item_details` - Single item information
+- `lookup_multiple_items` - Batch item lookups
+
+### Realm Tools
+- `get_realm_status` - Server status and info
+- `get_classic_realm_id` - Classic realm ID lookup
+
+### Visualization Tools
+- `generate_raid_progress_chart` - Raid completion visuals
+- `compare_member_performance` - Member metric comparison
+
+### Diagnostic Tools
+- `test_classic_auction_house` - Classic AH connectivity
+- `test_supabase_connection` - Database connection test
+
+## Development
+
+### Project Structure
+```
+guilddiscordbot/
+├── app/
+│   ├── core/           # Core infrastructure
+│   ├── tools/          # MCP tool implementations
+│   ├── services/       # Business logic
+│   ├── models/         # Database models
+│   ├── api/            # External API clients
+│   ├── workflows/      # Complex operations
+│   └── utils/          # Utility functions
+├── tests/              # Test suite
+├── config/             # Configuration files
+├── docs/               # Documentation
+└── deployment/         # Deployment configs
+```
+
+### Running Tests
+```bash
+# Quick tool tests
+python tests/quick_test_tools.py
+
+# Comprehensive test suite
+python tests/test_refactored_tools.py
+
+# Test specific tool category
+python tests/quick_test_tools.py guild
+python tests/quick_test_tools.py auction
+```
+
+### Adding New Tools
+
+1. Create tool function in appropriate module:
+```python
+# app/tools/your_tools.py
+from .base import mcp_tool, with_supabase_logging
+
+@mcp_tool()
+@with_supabase_logging
+async def your_new_tool(param1: str, param2: int = 10) -> Dict[str, Any]:
+    """Tool description for MCP"""
+    # Implementation
+    return {"result": "data"}
+```
+
+2. Import in main server file:
+```python
+# app/mcp_server_fastmcp.py
+from app.tools.your_tools import your_new_tool
+```
+
+3. Test your tool:
+```bash
+python tests/quick_test_tools.py
+```
+
+## Deployment
+
+### Heroku Deployment
+
+1. Create Heroku app:
+```bash
+heroku create your-app-name
+```
+
+2. Add Redis addon:
+```bash
+heroku addons:create heroku-redis:hobby-dev
+```
+
+3. Set environment variables:
+```bash
+heroku config:set BLIZZARD_CLIENT_ID=your_id
+heroku config:set BLIZZARD_CLIENT_SECRET=your_secret
+```
+
+4. Deploy:
+```bash
+git push heroku main
+```
+
+### Docker Deployment
+
+Build and run with Docker:
+```bash
+docker build -f config/docker/Dockerfile -t wow-guild-mcp .
+docker run -p 8000:8000 --env-file .env wow-guild-mcp
+```
+
+## Performance Considerations
+
+### Caching Strategy
+- **Guild Roster**: 15-day cache (from constants.py)
+- **Auction Data**: 1-hour cache for market freshness
+- **Character Data**: 2-hour cache (from redis_staging.py)
+- **Guild Info**: 6-hour cache (from redis_staging.py)
+- **Realm Data**: 24-hour cache (from redis_staging.py)
+
+### API Rate Limits
+- Blizzard API: 36,000 requests/hour
+- Efficient batching and caching minimize API usage
+- Automatic retry with exponential backoff
+
+### Resource Usage
+- Redis memory: 256MB max (configured in docker-compose.yml)
+- CPU: Minimal, mostly I/O bound
+
+## Contributing
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open Pull Request
+
+### Code Style
+- Follow PEP 8 guidelines
+- Use type hints for all functions
+- Add docstrings to all public functions
+- Write tests for new features
+
+## Troubleshooting
+
+### Common Issues
+
+**Redis Connection Failed**
+- Ensure Redis server is running
+- Check REDIS_URL format: `redis://user:password@host:port`
+- For Heroku, URL is automatically set
+
+**Blizzard API Errors**
+- Verify API credentials are correct
+- Check realm name spelling (e.g., 'area-52' not 'area 52')
+- Ensure proper game_version ('retail' or 'classic')
+
+**Character Not Found**
+- Character name is case-sensitive
+- Ensure realm name is correct
+- Character must exist and be recently active
+
+## License
+
+This project is licensed under the MIT License - see LICENSE file for details.
+
+## Acknowledgments
+
+- Built with [FastMCP 2.0](https://github.com/jlowin/fastmcp) - Fast Model Context Protocol implementation
+- Powered by [Blizzard Entertainment API](https://develop.battle.net/)
+- Inspired by community projects:
+  - [WoWthing](https://github.com/ThingEngineering/wowthing-again) - Web tool for WoW character management with Redis job scheduling
+  - [Guild Roster Manager](https://github.com/TheGeneticsGuy/Guild-Roster-Manager) - In-game addon for guild management and data syncing
+  - [Raider.IO](https://raider.io) - Performance tracking with high-volume caching patterns
+
+## Support
+
+For questions or support, please email: noah.mott1@gmail.com
 
 ---
 
-<div align="center">
+*Last updated: July 2025*
 
-[Issues & Features](https://github.com/noahmott/mcp_wowconomics_server/issues) • [Guild Analytics Support](mailto:noah.mott1@gmail.com) • [Community Discord](#)
+![Built with Claude](https://img.shields.io/badge/Built%20with-Claude-orange?style=for-the-badge)
 
-</div>
+*Coding assisted by Claude*
