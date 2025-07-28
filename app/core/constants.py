@@ -37,7 +37,7 @@ KNOWN_RETAIL_REALMS = {
     "frostmourne": 3725,
     "barthilas": 3723,
     "ragnaros": 3726,
-    "lightbringer": 1,
+    "lightbringer": 3694,
     
     # EU Realms  
     "draenor": 1403,
