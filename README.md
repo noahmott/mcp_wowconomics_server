@@ -357,6 +357,18 @@ This project is licensed under the MIT License - see LICENSE file for details.
   - [Guild Roster Manager](https://github.com/TheGeneticsGuy/Guild-Roster-Manager) - In-game addon for guild management and data syncing
   - [Raider.IO](https://raider.io) - Performance tracking with high-volume caching patterns
 
+### Open Source WoW Icons
+
+For projects needing World of Warcraft icons, these open source repositories are available:
+
+- [Wow-Icons](https://github.com/orourkek/Wow-Icons) - Collection of WoW icons including class icons, specializations, and boss models
+- [Clean Icons - Mechagnome Edition](https://github.com/AcidWeb/Clean-Icons-Mechagnome-Edition) - Upscaled icon pack for World of Warcraft
+- [wow_icons](https://github.com/Znuff/wow_icons) - Tools and scripts to convert WoW icons to a uniform look
+- [IconPacks](https://github.com/kodewdle/IconPacks) - Styled icon packs for World of Warcraft
+- [wowspecsemojis](https://github.com/danetch/wowspecsemojis) - WoW specialization icons as Discord emojis
+
+Note: For official WoW media assets, use [Blizzard's Media API](https://develop.battle.net/documentation/world-of-warcraft/guides/media-documents) with proper attribution.
+
 ## Support
 
 For questions or support, please email: noah.mott1@gmail.com
