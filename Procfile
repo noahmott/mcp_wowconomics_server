@@ -1,0 +1,1 @@
+web: python -m app.mcp_server_fastmcp

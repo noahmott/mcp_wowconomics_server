@@ -1,0 +1,45 @@
+{
+  "name": "WoW Guild Analysis MCP Server",
+  "description": "AI-powered World of Warcraft guild analytics MCP server",
+  "keywords": ["fastapi", "mcp", "wow", "gaming", "analytics"],
+  "website": "https://github.com/yourusername/wow-guild-mcp",
+  "repository": "https://github.com/yourusername/wow-guild-mcp",
+  "stack": "heroku-22",
+  "buildpacks": [
+    {"url": "heroku/python"}
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": [
+    "heroku-postgresql:mini",
+    "heroku-redis:mini",
+    "papertrail:choklad"
+  ],
+  "env": {
+    "BLIZZARD_CLIENT_ID": {
+      "description": "Blizzard Battle.net API Client ID",
+      "required": true
+    },
+    "BLIZZARD_CLIENT_SECRET": {
+      "description": "Blizzard Battle.net API Client Secret",
+      "required": true
+    },
+    "SUPABASE_URL": {
+      "description": "Supabase project URL for activity logging",
+      "required": false
+    },
+    "SUPABASE_KEY": {
+      "description": "Supabase service role key",
+      "required": false
+    },
+    "DEBUG": {
+      "description": "Enable debug mode",
+      "value": "false",
+      "required": false
+    }
+  }
+}
