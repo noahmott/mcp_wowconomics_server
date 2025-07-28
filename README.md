@@ -1,9 +1,11 @@
 # <img src="https://wow.zamimg.com/images/wow/icons/large/classicon_warrior.jpg" width="24" height="24" alt="Warrior"> WoW Guild Analytics MCP Server
 
-![World of Warcraft](https://img.shields.io/badge/World%20of%20Warcraft-Retail%20%26%20Classic-f4c430?style=for-the-badge&logo=battle.net&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-Caching-DC382D?style=for-the-badge&logo=redis&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.116.1-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-6.2.0-DC382D?style=for-the-badge&logo=redis&logoColor=white)
+![FastMCP](https://img.shields.io/badge/FastMCP-2.0+-FF6B6B?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTEyIDJMMiA3bDEwIDUgMTAtNXoiLz48cGF0aCBkPSJNMiAxN2wxMCA1IDEwLTVNMiAxMmwxMCA1IDEwLTUiLz48L3N2Zz4=)
+![Heroku](https://img.shields.io/badge/Heroku-Deployed-430098?style=for-the-badge&logo=heroku&logoColor=white)
+![WoW API](https://img.shields.io/badge/WoW%20API-Battle.net-00AEFF?style=for-the-badge&logo=battle.net&logoColor=white)
 
 A powerful Model Context Protocol (MCP) server that provides AI assistants with comprehensive World of Warcraft guild analytics, member performance tracking, auction house monitoring, and data visualization capabilities. Built with FastMCP 2.0 and optimized for high performance with Redis caching and modular architecture.
 
