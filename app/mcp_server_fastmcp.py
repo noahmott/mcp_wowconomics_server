@@ -208,8 +208,37 @@ async def analyze_guild_performance(
             )
         
         async with BlizzardAPIClient(game_version=game_version) as client:
-            # Get comprehensive guild data
-            guild_data = await client.get_comprehensive_guild_data(realm, guild_name)
+            # For comprehensive analysis, check if we have cached data first
+            if analysis_type == "comprehensive" and redis_client:
+                cache_key = f"guild_roster:{game_version}:{realm}:{guild_name}".lower()
+                cached_data = await redis_client.get(cache_key)
+                
+                if cached_data:
+                    logger.info(f"Using cached guild data for {guild_name}")
+                    guild_data = {
+                        "guild_info": json.loads(cached_data.decode()),
+                        "guild_roster": json.loads(cached_data.decode()),
+                        "members_data": json.loads(cached_data.decode()).get("members", [])[:20],  # Limit to 20 for analysis
+                        "fetch_timestamp": datetime.now(timezone.utc).isoformat(),
+                        "from_cache": True
+                    }
+                else:
+                    # Get comprehensive guild data but limit member fetching
+                    guild_data = await client.get_comprehensive_guild_data(realm, guild_name)
+                    # Limit members for analysis to prevent timeout
+                    if "members_data" in guild_data and len(guild_data["members_data"]) > 20:
+                        guild_data["members_data"] = guild_data["members_data"][:20]
+                        logger.info(f"Limited member analysis to 20 members to prevent timeout")
+            else:
+                # For basic analysis, just get guild info and roster without individual profiles
+                guild_info = await client.get_guild_info(realm, guild_name)
+                guild_roster = await client.get_guild_roster(realm, guild_name)
+                guild_data = {
+                    "guild_info": guild_info,
+                    "guild_roster": guild_roster,
+                    "members_data": [],  # No individual profiles for basic analysis
+                    "fetch_timestamp": datetime.now(timezone.utc).isoformat()
+                }
             
             # Process through workflow
             analysis_result = await guild_workflow.analyze_guild(
@@ -1031,15 +1060,34 @@ async def get_character_details(
             if "profile" in sections or True:  # Always include profile
                 try:
                     profile = await client.get_character_profile(realm, character_name)
+                    # Safe navigation for nested fields
+                    race_data = profile.get("race", {})
+                    race_name = race_data.get("name", {}).get("en_US", "Unknown") if isinstance(race_data, dict) else "Unknown"
+                    
+                    class_data = profile.get("character_class", {})
+                    class_name = class_data.get("name", {}).get("en_US", "Unknown") if isinstance(class_data, dict) else "Unknown"
+                    
+                    spec_data = profile.get("active_spec", {})
+                    spec_name = spec_data.get("name", {}).get("en_US", "Unknown") if isinstance(spec_data, dict) else "Unknown"
+                    
+                    realm_data = profile.get("realm", {})
+                    realm_name = realm_data.get("name", "Unknown") if isinstance(realm_data, dict) else "Unknown"
+                    
+                    faction_data = profile.get("faction", {})
+                    faction_name = faction_data.get("name", "Unknown") if isinstance(faction_data, dict) else "Unknown"
+                    
+                    guild_data = profile.get("guild")
+                    guild_name = guild_data.get("name") if isinstance(guild_data, dict) else None
+                    
                     character_data["profile"] = {
                         "name": profile.get("name"),
                         "level": profile.get("level"),
-                        "race": profile.get("race", {}).get("name", {}).get("en_US", "Unknown"),
-                        "class": profile.get("character_class", {}).get("name", {}).get("en_US", "Unknown"),
-                        "active_spec": profile.get("active_spec", {}).get("name", {}).get("en_US", "Unknown"),
-                        "realm": profile.get("realm", {}).get("name", "Unknown"),
-                        "faction": profile.get("faction", {}).get("name", "Unknown"),
-                        "guild": profile.get("guild", {}).get("name") if profile.get("guild") else None,
+                        "race": race_name,
+                        "class": class_name,
+                        "active_spec": spec_name,
+                        "realm": realm_name,
+                        "faction": faction_name,
+                        "guild": guild_name,
                         "achievement_points": profile.get("achievement_points", 0),
                         "equipped_item_level": profile.get("equipped_item_level", 0),
                         "average_item_level": profile.get("average_item_level", 0),
@@ -1056,29 +1104,50 @@ async def get_character_details(
                     equipped_items = []
                     
                     for item in equipment.get("equipped_items", []):
+                        # Safe navigation for item fields
+                        slot_data = item.get("slot", {})
+                        slot_name = slot_data.get("name", {}).get("en_US", "Unknown") if isinstance(slot_data, dict) else "Unknown"
+                        
+                        name_data = item.get("name", {})
+                        item_name = name_data.get("en_US", "Unknown") if isinstance(name_data, dict) else str(name_data) if name_data else "Unknown"
+                        
+                        level_data = item.get("level", {})
+                        item_level = level_data.get("value", 0) if isinstance(level_data, dict) else 0
+                        
+                        quality_data = item.get("quality", {})
+                        quality_name = quality_data.get("name", {}).get("en_US", "Unknown") if isinstance(quality_data, dict) else "Unknown"
+                        
+                        item_data = item.get("item", {})
+                        item_id = item_data.get("id") if isinstance(item_data, dict) else None
+                        
                         item_info = {
-                            "slot": item.get("slot", {}).get("name", {}).get("en_US", "Unknown"),
-                            "name": item.get("name", {}).get("en_US", "Unknown"),
-                            "item_level": item.get("level", {}).get("value", 0),
-                            "quality": item.get("quality", {}).get("name", {}).get("en_US", "Unknown"),
-                            "item_id": item.get("item", {}).get("id"),
+                            "slot": slot_name,
+                            "name": item_name,
+                            "item_level": item_level,
+                            "quality": quality_name,
+                            "item_id": item_id,
                             "enchantments": [],
                             "sockets": []
                         }
                         
                         # Get enchantments
                         for enchant in item.get("enchantments", []):
+                            display_data = enchant.get("display_string", {})
+                            display_name = display_data.get("en_US", "Unknown") if isinstance(display_data, dict) else str(display_data) if display_data else "Unknown"
                             item_info["enchantments"].append({
                                 "id": enchant.get("enchantment_id"),
-                                "name": enchant.get("display_string", {}).get("en_US", "Unknown")
+                                "name": display_name
                             })
                         
                         # Get sockets
                         for socket in item.get("sockets", []):
-                            if socket.get("item"):
+                            socket_item = socket.get("item")
+                            if socket_item and isinstance(socket_item, dict):
+                                socket_name_data = socket_item.get("name", {})
+                                socket_name = socket_name_data.get("en_US", "Unknown") if isinstance(socket_name_data, dict) else "Unknown"
                                 item_info["sockets"].append({
-                                    "item_id": socket["item"].get("id"),
-                                    "name": socket["item"].get("name", {}).get("en_US", "Unknown")
+                                    "item_id": socket_item.get("id"),
+                                    "name": socket_name
                                 })
                         
                         equipped_items.append(item_info)

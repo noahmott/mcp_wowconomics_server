@@ -618,8 +618,8 @@ class BlizzardAPIClient:
         max_errors = 10  # Allow more errors before stopping
         
         if "members" in guild_roster:
-            # Process more members but still limit to avoid timeout
-            members = guild_roster["members"][:50]  # Increased to 50 for better gear analysis
+            # Process limited members to avoid timeout (can be overridden by caller)
+            members = guild_roster["members"][:25]  # Reduced to 25 to prevent timeouts
             logger.info(f"Processing {len(members)} guild members out of {len(guild_roster['members'])} total")
             
             for member in members:
