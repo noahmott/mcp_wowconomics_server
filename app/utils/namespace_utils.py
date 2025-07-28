@@ -70,6 +70,7 @@ async def get_connected_realm_id(realm: str, game_version: str = "retail", clien
     from ..core.constants import KNOWN_CLASSIC_REALMS, KNOWN_RETAIL_REALMS
     
     realm_lower = realm.lower()
+    logger.info(f"Looking up realm '{realm}' (normalized: '{realm_lower}') for {game_version}")
     
     # First check hardcoded IDs
     if game_version == "classic" and realm_lower in KNOWN_CLASSIC_REALMS:
@@ -78,6 +79,8 @@ async def get_connected_realm_id(realm: str, game_version: str = "retail", clien
     elif game_version == "retail" and realm_lower in KNOWN_RETAIL_REALMS:
         logger.info(f"Using known Retail realm ID for {realm}: {KNOWN_RETAIL_REALMS[realm_lower]}")
         return KNOWN_RETAIL_REALMS[realm_lower]
+    else:
+        logger.warning(f"Realm '{realm_lower}' not found in {'KNOWN_RETAIL_REALMS' if game_version == 'retail' else 'KNOWN_CLASSIC_REALMS'}")
     
     # Try to get from API
     if client:
