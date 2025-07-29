@@ -213,7 +213,7 @@ docker-compose -f config/docker/docker-compose.yml up
 
 ### Project Structure
 ```
-guilddiscordbot/
+wowconomics/
 ├── app/
 │   ├── core/           # Core infrastructure
 │   ├── tools/          # MCP tool implementations
