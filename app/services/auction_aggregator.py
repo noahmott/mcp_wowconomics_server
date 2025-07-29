@@ -27,8 +27,7 @@ class AuctionAggregatorService:
             'prices': [],
             'quantities': [],
             'sellers': set(),
-            'auctions': [],
-            'price_points': defaultdict(lambda: {'quantity': 0, 'count': 0, 'sellers': set()})
+            'auctions': []
         })
         
         for auction in auctions:
@@ -48,12 +47,6 @@ class AuctionAggregatorService:
                 agg['quantities'].append(quantity)
                 agg['sellers'].add(seller_id)
                 agg['auctions'].append(auction)
-                
-                # Track price distribution
-                price_bucket = round(price_per_unit, 2)  # Round to copper
-                agg['price_points'][price_bucket]['quantity'] += quantity
-                agg['price_points'][price_bucket]['count'] += 1
-                agg['price_points'][price_bucket]['sellers'].add(seller_id)
         
         # Calculate final metrics
         results = {}
@@ -84,8 +77,7 @@ class AuctionAggregatorService:
                 'std_dev_price': float(np.std(prices)) if len(prices) > 1 else 0,
                 'top_seller_quantity': int(top_seller_qty),
                 'top_seller_percentage': float(top_seller_qty / total_quantity * 100) if total_quantity > 0 else 0,
-                'total_market_value': float(sum(quantities * prices[:len(quantities)])),
-                'price_distribution': data['price_points']
+                'total_market_value': float(sum(quantities * prices[:len(quantities)]))
             }
         
         return results

@@ -145,7 +145,7 @@ async def capture_economy_snapshot(
                             last_time = datetime.fromisoformat(last_update.decode())  # Decode bytes to string
                             time_diff = datetime.now(timezone.utc) - last_time
                             
-                            if time_diff.total_seconds() < 600:  # Less than 10 minutes
+                            if time_diff.total_seconds() < 3600:  # Less than 60 minutes (1 hour)
                                 logger.info(f"Skipping {realm} - snapshot is {int(time_diff.total_seconds() / 60)} minutes old")
                                 results[realm] = {"status": "skipped", "reason": "recent_snapshot_exists"}
                                 snapshots_skipped += 1
@@ -477,3 +477,212 @@ async def analyze_item_market_history(
     except Exception as e:
         logger.error(f"Error analyzing market history: {str(e)}")
         return {"error": f"Market analysis failed: {str(e)}"}
+
+
+@mcp_tool()
+@with_supabase_logging
+async def check_economy_snapshot_health(
+    realms: Optional[List[str]] = None,
+    region: str = "us",
+    game_version: str = "retail",
+    check_hours: int = 24
+) -> Dict[str, Any]:
+    """
+    Check the health of economy snapshots in Redis
+    
+    Args:
+        realms: List of realms to check (if None, checks all configured realms)
+        region: Region (us, eu, etc.)
+        game_version: WoW version ('retail' or 'classic')
+        check_hours: Number of hours to analyze (default 24)
+    
+    Returns:
+        Health check results including snapshot frequency and any issues
+    """
+    try:
+        logger.info(f"Checking economy snapshot health for {game_version} {region}")
+        
+        # Initialize services if needed
+        service_mgr = await get_or_initialize_services()
+        redis_client = service_mgr.redis_client
+        
+        if not redis_client:
+            return {
+                "error": "Redis not available",
+                "message": "Redis connection required for health check"
+            }
+        
+        # Default realms if none specified
+        if not realms:
+            realms = [
+                "area-52", "stormrage", "illidan", "tichondrius", 
+                "mal'ganis", "zul'jin", "thrall", "lightbringer",
+                "moonguard", "wyrmrest-accord"
+            ]
+        
+        current_time = datetime.now(timezone.utc)
+        cutoff_time = current_time - timedelta(hours=check_hours)
+        health_results = {}
+        
+        for realm in realms:
+            realm_lower = realm.lower()
+            snapshot_base_key = f"economy_snapshot:{game_version}:{region}:{realm_lower}"
+            
+            # Get last update time
+            last_update_key = f"{snapshot_base_key}:last_update"
+            last_update = await redis_client.get(last_update_key)
+            
+            # Get all snapshot keys for this realm
+            pattern = f"{snapshot_base_key}:*"
+            all_keys = await redis_client.keys(pattern)
+            
+            # Filter and parse snapshot timestamps
+            snapshots = []
+            for key in all_keys:
+                key_str = key.decode() if isinstance(key, bytes) else key
+                key_parts = key_str.split(':')
+                if len(key_parts) >= 5 and key_parts[-1].startswith('202'):
+                    timestamp_str = key_parts[-1]
+                    try:
+                        # Handle both old and new formats
+                        if len(timestamp_str) == 11:  # YYYYMMDD_HH
+                            ts_dt = datetime.strptime(timestamp_str, '%Y%m%d_%H').replace(tzinfo=timezone.utc)
+                        else:  # YYYYMMDD_HHMM
+                            ts_dt = datetime.strptime(timestamp_str, '%Y%m%d_%H%M').replace(tzinfo=timezone.utc)
+                        
+                        if ts_dt >= cutoff_time:
+                            snapshots.append(ts_dt)
+                    except ValueError:
+                        continue
+            
+            # Sort snapshots by time
+            snapshots.sort()
+            
+            # Analyze snapshot health
+            health_data = {
+                "realm": realm,
+                "status": "unknown",
+                "last_update": None,
+                "minutes_since_update": None,
+                "snapshot_count": len(snapshots),
+                "expected_snapshots": int(check_hours),  # 1 per hour
+                "missing_percentage": 0,
+                "gaps": [],
+                "issues": []
+            }
+            
+            # Check last update time
+            if last_update:
+                try:
+                    last_time = datetime.fromisoformat(last_update.decode())
+                    health_data["last_update"] = last_time.isoformat()
+                    health_data["minutes_since_update"] = int((current_time - last_time).total_seconds() / 60)
+                    
+                    # Flag if no recent update (more than 75 minutes for hourly snapshots)
+                    if health_data["minutes_since_update"] > 75:
+                        health_data["issues"].append(f"No update in {health_data['minutes_since_update']} minutes")
+                except:
+                    health_data["issues"].append("Invalid last_update timestamp")
+            else:
+                health_data["issues"].append("No last_update timestamp found")
+            
+            # Analyze gaps between snapshots
+            if len(snapshots) >= 2:
+                gaps = []
+                for i in range(1, len(snapshots)):
+                    gap_minutes = (snapshots[i] - snapshots[i-1]).total_seconds() / 60
+                    if gap_minutes > 75:  # More than 75 minutes is concerning for hourly snapshots
+                        gaps.append({
+                            "from": snapshots[i-1].isoformat(),
+                            "to": snapshots[i].isoformat(),
+                            "gap_minutes": int(gap_minutes)
+                        })
+                
+                health_data["gaps"] = gaps
+                
+                # Calculate average interval
+                total_minutes = (snapshots[-1] - snapshots[0]).total_seconds() / 60
+                avg_interval = total_minutes / (len(snapshots) - 1) if len(snapshots) > 1 else 0
+                health_data["average_interval_minutes"] = round(avg_interval, 1)
+                
+                # Check for duplicates (snapshots within 1 minute)
+                duplicates = 0
+                for i in range(1, len(snapshots)):
+                    if (snapshots[i] - snapshots[i-1]).total_seconds() < 60:
+                        duplicates += 1
+                if duplicates > 0:
+                    health_data["issues"].append(f"{duplicates} duplicate snapshots detected")
+            
+            # Calculate missing percentage
+            health_data["missing_percentage"] = round(
+                (1 - health_data["snapshot_count"] / health_data["expected_snapshots"]) * 100, 1
+            ) if health_data["expected_snapshots"] > 0 else 0
+            
+            # Determine overall status
+            if not health_data["issues"] and health_data["missing_percentage"] < 10:
+                health_data["status"] = "healthy"
+            elif health_data["missing_percentage"] < 25 and len(health_data["issues"]) <= 1:
+                health_data["status"] = "warning"
+            else:
+                health_data["status"] = "unhealthy"
+            
+            health_results[realm] = health_data
+        
+        # Calculate overall health
+        total_realms = len(health_results)
+        healthy_realms = sum(1 for r in health_results.values() if r["status"] == "healthy")
+        warning_realms = sum(1 for r in health_results.values() if r["status"] == "warning")
+        unhealthy_realms = sum(1 for r in health_results.values() if r["status"] == "unhealthy")
+        
+        return {
+            "success": True,
+            "check_time": current_time.isoformat(),
+            "hours_analyzed": check_hours,
+            "overall_health": {
+                "total_realms": total_realms,
+                "healthy": healthy_realms,
+                "warning": warning_realms,
+                "unhealthy": unhealthy_realms,
+                "health_percentage": round((healthy_realms / total_realms) * 100, 1) if total_realms > 0 else 0
+            },
+            "realm_health": health_results,
+            "recommendations": _get_health_recommendations(health_results)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error checking snapshot health: {str(e)}")
+        return {"error": f"Snapshot health check failed: {str(e)}"}
+
+
+def _get_health_recommendations(health_results: Dict[str, Any]) -> List[str]:
+    """Generate recommendations based on health check results"""
+    recommendations = []
+    
+    # Check for systematic issues
+    realms_with_gaps = sum(1 for r in health_results.values() if r.get("gaps", []))
+    realms_with_duplicates = sum(1 for r in health_results.values() 
+                                if any("duplicate" in issue for issue in r.get("issues", [])))
+    stale_realms = sum(1 for r in health_results.values() 
+                      if r.get("minutes_since_update", 0) > 30)
+    
+    if stale_realms > len(health_results) * 0.5:
+        recommendations.append("CRITICAL: Scheduler appears to be down - over 50% of realms have stale data")
+    
+    if realms_with_duplicates > 3:
+        recommendations.append("Multiple realms show duplicate snapshots - check for concurrent scheduler runs")
+    
+    if realms_with_gaps > len(health_results) * 0.3:
+        recommendations.append("Many realms have gaps in snapshots - check scheduler reliability")
+    
+    # Check individual realm issues
+    for realm, data in health_results.items():
+        if data["status"] == "unhealthy":
+            if data.get("minutes_since_update", 0) > 60:
+                recommendations.append(f"{realm}: No updates in over an hour - check API access")
+            elif data.get("missing_percentage", 0) > 50:
+                recommendations.append(f"{realm}: Missing {data['missing_percentage']}% of expected snapshots")
+    
+    if not recommendations:
+        recommendations.append("All systems operating normally")
+    
+    return recommendations
