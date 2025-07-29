@@ -60,7 +60,7 @@ A powerful Model Context Protocol (MCP) server that provides AI assistants with 
 ### Performance Optimizations
 - **Intelligent Redis Caching** - Reduces API calls significantly
 - **15-Day Guild Roster Cache** - Long-term caching for stable data
-- **Hourly Economy Snapshots** - Balanced freshness vs. API limits
+- **10-Minute Economy Snapshots** - High-frequency market data capture
 - **Async/Await Throughout** - Non-blocking I/O operations
 - **Modular Tool Design** - 82% code reduction through refactoring
 
