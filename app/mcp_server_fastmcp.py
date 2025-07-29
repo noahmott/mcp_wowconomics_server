@@ -1602,7 +1602,7 @@ async def capture_economy_snapshot(
                             last_time = datetime.fromisoformat(last_update.decode())  # Decode bytes to string
                             time_diff = datetime.now(timezone.utc) - last_time
                             
-                            if time_diff.total_seconds() < 3600:  # Less than 1 hour
+                            if time_diff.total_seconds() < 600:  # Less than 10 minutes
                                 logger.info(f"Skipping {realm} - snapshot is {int(time_diff.total_seconds() / 60)} minutes old")
                                 results[realm] = {
                                     "status": "skipped",
@@ -1684,7 +1684,7 @@ async def capture_economy_snapshot(
                         }
                     
                     # Store snapshot with timestamp-based key (for historical data)
-                    timestamp_key = f"{snapshot_key}:{datetime.now(timezone.utc).strftime('%Y%m%d_%H')}"
+                    timestamp_key = f"{snapshot_key}:{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}"
                     await redis_client.setex(
                         timestamp_key,
                         30 * 24 * 60 * 60,  # 30 days retention
@@ -1770,30 +1770,51 @@ async def get_economy_trends(
         
         # Get all snapshots for the time period
         current_time = datetime.now(timezone.utc)
+        cutoff_time = current_time - timedelta(hours=hours)
         
-        for h in range(hours):
-            timestamp = current_time - timedelta(hours=h)
-            timestamp_key = f"{snapshot_base_key}:{timestamp.strftime('%Y%m%d_%H')}"
-            
-            snapshot_data = await redis_client.get(timestamp_key)
-            if snapshot_data:
-                snapshot = json.loads(snapshot_data.decode())  # Decode bytes to string
-                
-                for item_id in item_ids:
-                    item_id_str = str(item_id)
-                    if item_id_str not in trends:
-                        trends[item_id_str] = []
+        # Get all snapshot keys for this realm
+        pattern = f"{snapshot_base_key}:*"
+        all_keys = await redis_client.keys(pattern)
+        
+        # Filter keys to only include timestamps within our time range
+        for key in all_keys:
+            key_parts = key.split(':')
+            if len(key_parts) >= 5 and key_parts[-1].startswith('202'):
+                # Parse timestamp from key
+                timestamp_str = key_parts[-1]
+                try:
+                    # Handle both old (YYYYMMDD_HH) and new (YYYYMMDD_HHMM) formats
+                    if len(timestamp_str) == 11:  # Old format: YYYYMMDD_HH
+                        ts_dt = datetime.strptime(timestamp_str, '%Y%m%d_%H').replace(tzinfo=timezone.utc)
+                    else:  # New format: YYYYMMDD_HHMM
+                        ts_dt = datetime.strptime(timestamp_str, '%Y%m%d_%H%M').replace(tzinfo=timezone.utc)
                     
-                    if item_id_str in snapshot.get('items', {}):
-                        item_data = snapshot['items'][item_id_str]
-                        trends[item_id_str].append({
-                            "timestamp": snapshot['timestamp'],
-                            "avg_price": item_data['avg_price'],
-                            "min_price": item_data['min_price'],
-                            "max_price": item_data['max_price'],
-                            "quantity": item_data['quantity'],
-                            "auction_count": item_data['auction_count']
-                        })
+                    # Skip if outside our time range
+                    if ts_dt < cutoff_time or ts_dt > current_time:
+                        continue
+                    
+                    snapshot_data = await redis_client.get(key)
+                    if snapshot_data:
+                        snapshot = json.loads(snapshot_data.decode())  # Decode bytes to string
+                        
+                        for item_id in item_ids:
+                            item_id_str = str(item_id)
+                            if item_id_str not in trends:
+                                trends[item_id_str] = []
+                            
+                            if item_id_str in snapshot.get('items', {}):
+                                item_data = snapshot['items'][item_id_str]
+                                trends[item_id_str].append({
+                                    "timestamp": snapshot['timestamp'],
+                                    "avg_price": item_data['avg_price'],
+                                    "min_price": item_data['min_price'],
+                                    "max_price": item_data['max_price'],
+                                    "quantity": item_data['quantity'],
+                                    "auction_count": item_data['auction_count']
+                                })
+                except ValueError:
+                    # Skip keys with invalid timestamp format
+                    continue
         
         # Sort trends by timestamp (oldest first)
         for item_id in trends:
