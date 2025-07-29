@@ -83,7 +83,7 @@ A powerful Model Context Protocol (MCP) server that provides AI assistants with 
 1. Clone the repository:
 ```bash
 git clone [repository-url]
-cd guilddiscordbot
+cd mcp_wowconomics_server
 ```
 
 2. Create virtual environment:
@@ -149,7 +149,7 @@ docker-compose -f config/docker/docker-compose.yml up
     "wow-guild": {
       "command": "python",
       "args": ["-m", "app.mcp_server_fastmcp"],
-      "cwd": "/path/to/guilddiscordbot",
+      "cwd": "/path/to/mcp_wowconomics_server",
       "env": {
         "BLIZZARD_CLIENT_ID": "your_client_id",
         "BLIZZARD_CLIENT_SECRET": "your_client_secret",
