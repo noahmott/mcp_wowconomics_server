@@ -267,7 +267,9 @@ async def get_economy_trends(
         
         # Filter keys to only include timestamps within our time range
         for key in all_keys:
-            key_parts = key.split(':')
+            # Decode bytes key to string
+            key_str = key.decode() if isinstance(key, bytes) else key
+            key_parts = key_str.split(':')
             if len(key_parts) >= 5 and key_parts[-1].startswith('202'):
                 # Parse timestamp from key
                 timestamp_str = key_parts[-1]
